@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Empleado — Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue-dark:  #0a2240; --blue-mid: #0d3b6e; --blue: #1565c0;
+      --blue-light: #1e88e5; --blue-bright: #42a5f5;
+      --white: #ffffff; --off-white: #f0f6ff;
+      --gray-light: #e3edf8; --gray: #8baac8; --text: #1a2e44;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; display: flex; }
+    .sidebar { width: var(--sidebar-w); background: linear-gradient(180deg, var(--blue-dark) 0%, var(--blue-mid) 100%); min-height: 100vh; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; box-shadow: 4px 0 24px rgba(10,34,64,.25); }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(30,136,229,.4); }
+    .sidebar-logo-icon svg { width: 20px; height: 20px; fill: white; }
+    .sidebar-logo-text { font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; font-weight: 700; color: white; line-height: 1.2; }
+    .sidebar-logo-text span { display: block; font-size: .65rem; font-weight: 500; opacity: .55; letter-spacing: .08em; text-transform: uppercase; }
+    .sidebar-section { padding: 20px 12px 8px; font-size: .65rem; font-weight: 700; color: rgba(255,255,255,.3); letter-spacing: .12em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin: 2px 8px; border-radius: 9px; cursor: pointer; color: rgba(255,255,255,.6); font-size: .9rem; font-weight: 500; transition: all .2s; text-decoration: none; }
+    .nav-item:hover { background: rgba(255,255,255,.08); color: white; }
+    .nav-item.active { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 4px 14px rgba(21,101,192,.4); }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+    .user-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.07); }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: white; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: .85rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: .7rem; color: var(--gray); }
+    .logout-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,.4); padding: 4px; transition: color .2s; }
+    .logout-btn:hover { color: white; }
+    .logout-btn svg { width: 16px; height: 16px; }
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--gray-light); box-shadow: 0 2px 8px rgba(10,34,64,.06); position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--blue-dark); }
+    .topbar-date { font-size: .82rem; color: var(--gray); }
+    .content { padding: 28px 32px; flex: 1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 28px; }
+    .stat-card { background: white; border-radius: 14px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); display: flex; flex-direction: column; gap: 12px; }
+    .stat-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .stat-card-label { font-size: .78rem; font-weight: 600; color: var(--gray); letter-spacing: .04em; text-transform: uppercase; }
+    .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .stat-icon svg { width: 20px; height: 20px; }
+    .stat-icon.blue { background: #dbeafe; } .stat-icon.blue svg { color: var(--blue); }
+    .stat-icon.orange { background: #ffedd5; } .stat-icon.orange svg { color: #ea580c; }
+    .stat-icon.green { background: #dcfce7; } .stat-icon.green svg { color: #16a34a; }
+    .stat-card-num { font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--blue-dark); line-height: 1; }
+    .stat-card-sub { font-size: .78rem; color: var(--gray); }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--blue-dark); }
+    .btn { padding: 9px 18px; border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .875rem; font-weight: 600; cursor: pointer; transition: all .2s; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 3px 12px rgba(21,101,192,.3); }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-outline { background: white; color: var(--blue); border: 1.5px solid var(--gray-light); }
+    .btn-outline:hover { background: var(--off-white); }
+    .btn-green { background: linear-gradient(135deg, #16a34a, #22c55e); color: white; box-shadow: 0 3px 12px rgba(22,163,74,.3); }
+    .btn-orange { background: linear-gradient(135deg, #ea580c, #f97316); color: white; box-shadow: 0 3px 12px rgba(234,88,12,.3); }
+    .btn-red { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; box-shadow: 0 3px 12px rgba(220,38,38,.3); }
+    .table-card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); overflow: hidden; margin-bottom: 24px; }
+    .table-card-header { padding: 18px 24px; border-bottom: 1px solid var(--gray-light); display: flex; align-items: center; justify-content: space-between; }
+    .table-card-title { font-size: 1rem; font-weight: 700; color: var(--blue-dark); }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 12px 20px; text-align: left; font-size: .72rem; font-weight: 700; color: var(--gray); letter-spacing: .06em; text-transform: uppercase; background: var(--off-white); border-bottom: 1px solid var(--gray-light); }
+    tbody tr { border-bottom: 1px solid var(--gray-light); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8faff; }
+    tbody td { padding: 13px 20px; font-size: .875rem; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .badge-transit { background: #dbeafe; color: #1d4ed8; }
+    .badge-sucursal { background: #dcfce7; color: #15803d; }
+    .badge-reparto { background: #ffedd5; color: #c2410c; }
+    .badge-entregado { background: #f0fdf4; color: #16a34a; }
+    .form-card { background: white; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); max-width: 560px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--blue-dark); margin-bottom: 6px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-light); border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--blue-light); }
+    .field textarea { resize: vertical; min-height: 90px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 28px; width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .modal-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    </div>
+    <div class="sidebar-logo-text">Santa Marta<span>Panel Empleado</span></div>
+  </div>
+
+  <div class="sidebar-section">Operaciones</div>
+  <a href="#" class="nav-item active" onclick="showPage('dashboard')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('recepcionar')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.36C18 2.06 15.96 0 13.5 0c-1.23 0-2.31.5-3.11 1.3L9 2.7 7.61 1.3C6.81.5 5.73 0 4.5 0 2.04 0 0 2.06 0 4.64c0 .48.11.92.18 1.36H0v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>Recepcionar paquetes
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('pendientes')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>Envíos pendientes
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('incidencias')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>Registrar incidencia
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="user-avatar">{{ user.first_name|slice:":2"|upper }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ user.get_full_name }}</div>
+        <div class="user-role">Empleado — Santa Marta Sgo.</div>
+      </div>
+      <form method="POST" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="logout-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <span class="topbar-date" id="topbar-date"></span>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">En tránsito</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_transito.count }}</div>
+          <div class="stat-card-sub">Esperando recepción</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">En sucursal</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_sucursal.count }}</div>
+          <div class="stat-card-sub">Pendientes de entrega</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">En reparto</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_reparto.count }}</div>
+          <div class="stat-card-sub">En camino al cliente</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Envíos activos</div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            {% for envio in envios_sucursal %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span></td>
+              <td style="display:flex;gap:8px;flex-wrap:wrap;">
+                <form method="POST" action="{% url 'empleado_estado' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="en_reparto"/>
+                  <button type="submit" class="btn btn-orange" style="padding:5px 10px;font-size:.75rem;">En reparto</button>
+                </form>
+                <form method="POST" action="{% url 'empleado_estado' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="entregado"/>
+                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
+                </form>
+                <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
+              </td>
+            </tr>
+            {% endfor %}
+            {% for envio in envios_reparto %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-reparto">En reparto</span></td>
+              <td style="display:flex;gap:8px;flex-wrap:wrap;">
+                <form method="POST" action="{% url 'empleado_estado' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="entregado"/>
+                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
+                </form>
+                <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not envios_sucursal and not envios_reparto %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos activos</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RECEPCIONAR -->
+    <div id="page-recepcionar" style="display:none;">
+      <div class="section-header"><div class="section-title">Recepcionar Paquetes</div></div>
+      <div class="form-card" style="margin-bottom:24px;">
+        <div style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:16px;">Ingresar código de paquete</div>
+        <form method="POST" action="{% url 'empleado_recepcionar' %}">
+          {% csrf_token %}
+          <div style="display:flex;gap:12px;align-items:flex-end;">
+            <div class="field" style="flex:1;margin-bottom:0;">
+              <label>Código de envío *</label>
+              <input type="text" name="codigo" placeholder="Ej: ENV-A1B2C3" required/>
+            </div>
+            <button type="submit" class="btn btn-primary">Recepcionar</button>
+          </div>
+        </form>
+      </div>
+      <div class="section-header"><div class="section-title">Paquetes en tránsito esperando recepción</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in envios_transito %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-transit">En tránsito</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay paquetes en tránsito</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PENDIENTES -->
+    <div id="page-pendientes" style="display:none;">
+      <div class="section-header"><div class="section-title">Envíos Pendientes de Entrega</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Teléfono</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            {% for envio in envios_sucursal %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.telefono }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span></td>
+              <td>
+                <form method="POST" action="{% url 'empleado_estado' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="entregado"/>
+                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            {% for envio in envios_reparto %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.telefono }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-reparto">En reparto</span></td>
+              <td>
+                <form method="POST" action="{% url 'empleado_estado' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="entregado"/>
+                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not envios_sucursal and not envios_reparto %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- INCIDENCIAS -->
+    <div id="page-incidencias" style="display:none;">
+      <div class="section-header"><div class="section-title">Registrar Incidencia</div></div>
+      <div class="form-card">
+        <form method="POST" action="{% url 'empleado_incidencia' %}">
+          {% csrf_token %}
+          <div class="field">
+            <label>Envío afectado *</label>
+            <select name="envio_id" required>
+              <option value="">Seleccionar envío...</option>
+              {% for envio in envios_sucursal %}
+              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
+              {% endfor %}
+              {% for envio in envios_reparto %}
+              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
+              {% endfor %}
+              {% for envio in envios_transito %}
+              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo de incidencia *</label>
+            <select name="tipo" required>
+              <option value="danado">Paquete dañado</option>
+              <option value="perdido">Paquete perdido</option>
+              <option value="direccion">Dirección incorrecta</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Descripción detallada *</label>
+            <textarea name="descripcion" placeholder="Describí el problema con detalle..." required></textarea>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('dashboard')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Registrar incidencia</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL INCIDENCIA RÁPIDA -->
+<div class="modal-overlay" id="modal-incidencia">
+  <div class="modal">
+    <div class="modal-title">Registrar Incidencia</div>
+    <form method="POST" action="{% url 'empleado_incidencia' %}">
+      {% csrf_token %}
+      <input type="hidden" name="envio_id" id="modal-envio-id"/>
+      <div class="field">
+        <label>Envío: <strong id="modal-envio-codigo"></strong></label>
+      </div>
+      <div class="field">
+        <label>Tipo de incidencia *</label>
+        <select name="tipo">
+          <option value="danado">Paquete dañado</option>
+          <option value="perdido">Paquete perdido</option>
+          <option value="direccion">Dirección incorrecta</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Descripción *</label>
+        <textarea name="descripcion" placeholder="Describí el problema..." required></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const d = new Date();
+  document.getElementById('topbar-date').textContent =
+    d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  function showPage(page) {
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
+    const target = document.getElementById('page-' + page);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const titles = {
+      dashboard: 'Dashboard', recepcionar: 'Recepcionar Paquetes',
+      pendientes: 'Envíos Pendientes', incidencias: 'Registrar Incidencia'
+    };
+    document.getElementById('page-title').textContent = titles[page] || 'Panel';
+  }
+
+  function abrirIncidencia(id, codigo) {
+    document.getElementById('modal-envio-id').value = id;
+    document.getElementById('modal-envio-codigo').textContent = codigo;
+    document.getElementById('modal-incidencia').classList.add('open');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-incidencia').classList.remove('open');
+  }
+</script>
+</body>
+</html>

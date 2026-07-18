@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transporte Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-dark:   #0a2240;
+      --blue-mid:    #0d3b6e;
+      --blue:        #1565c0;
+      --blue-light:  #1e88e5;
+      --blue-bright: #42a5f5;
+      --white:       #ffffff;
+      --off-white:   #f0f6ff;
+      --gray-light:  #d6e4f7;
+      --gray:        #8baac8;
+      --shadow:      rgba(10, 34, 64, 0.18);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Barlow', sans-serif;
+      background: var(--blue-dark);
+      overflow: hidden;
+    }
+
+    /* ── background ── */
+    .bg {
+      position: fixed; inset: 0; z-index: 0;
+      background: linear-gradient(135deg, #06172e 0%, #0a2240 45%, #0d3b6e 100%);
+      overflow: hidden;
+    }
+    .bg::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 110%, rgba(21,101,192,.35) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 85% -10%, rgba(30,136,229,.25) 0%, transparent 55%);
+    }
+
+    /* diagonal stripe accent */
+    .bg-stripes {
+      position: absolute; inset: 0;
+      background-image: repeating-linear-gradient(
+        -55deg,
+        transparent,
+        transparent 60px,
+        rgba(255,255,255,.018) 60px,
+        rgba(255,255,255,.018) 61px
+      );
+    }
+
+    /* floating shapes */
+    .shape {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle, rgba(30,136,229,.12), transparent 70%);
+      animation: float 8s ease-in-out infinite;
+    }
+    .shape-1 { width: 500px; height: 500px; top: -120px; right: -100px; animation-delay: 0s; }
+    .shape-2 { width: 320px; height: 320px; bottom: -80px; left: -60px; animation-delay: -3s; }
+    .shape-3 { width: 200px; height: 200px; top: 40%; left: 20%; opacity: .5; animation-delay: -5s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-20px) scale(1.04); }
+    }
+
+    /* ── layout ── */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 440px;
+    }
+
+    /* ── left brand panel ── */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 56px;
+      color: var(--white);
+    }
+
+    .logo-mark {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 56px;
+    }
+    .logo-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-bright));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(30,136,229,.4);
+      flex-shrink: 0;
+    }
+    .logo-icon svg { width: 28px; height: 28px; fill: white; }
+    .logo-text {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.25rem; font-weight: 700;
+      letter-spacing: .04em; line-height: 1.2;
+      color: var(--white);
+    }
+    .logo-text span { display: block; font-size: .75rem; font-weight: 500; opacity: .6; letter-spacing: .12em; text-transform: uppercase; }
+
+    .brand-headline {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(2.8rem, 5vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -.01em;
+      margin-bottom: 24px;
+    }
+    .brand-headline em {
+      font-style: normal;
+      color: var(--blue-bright);
+    }
+
+    .brand-desc {
+      font-size: 1.05rem; line-height: 1.65;
+      color: var(--gray); max-width: 420px;
+      margin-bottom: 52px;
+    }
+
+    .stats {
+      display: flex; gap: 40px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 4px; }
+    .stat-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 2rem; font-weight: 700; color: var(--white);
+    }
+    .stat-label { font-size: .78rem; color: var(--gray); letter-spacing: .06em; text-transform: uppercase; }
+
+    .divider-v {
+      width: 1px; height: 48px; background: rgba(255,255,255,.12);
+      align-self: center;
+    }
+
+    /* ── right card panel ── */
+    .card-panel {
+      display: flex; align-items: center; justify-content: center;
+      padding: 32px 28px;
+    }
+
+    .card {
+      width: 100%; max-width: 400px;
+      background: rgba(255,255,255,.97);
+      border-radius: 20px;
+      padding: 40px 36px 36px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06);
+      animation: slideUp .5s cubic-bezier(.16,1,.3,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header { margin-bottom: 28px; }
+    .card-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.65rem; font-weight: 700;
+      color: var(--blue-dark); letter-spacing: -.01em;
+    }
+    .card-sub { font-size: .875rem; color: var(--gray); margin-top: 4px; }
+
+    /* tabs */
+    .tabs {
+      display: grid; grid-template-columns: 1fr 1fr;
+      background: var(--off-white);
+      border-radius: 10px; padding: 4px;
+      margin-bottom: 28px;
+    }
+    .tab-btn {
+      padding: 9px 0; border: none; background: transparent;
+      font-family: 'Barlow', sans-serif; font-size: .9rem; font-weight: 600;
+      color: var(--gray); border-radius: 7px; cursor: pointer;
+      transition: all .22s ease;
+    }
+    .tab-btn.active {
+      background: var(--blue); color: white;
+      box-shadow: 0 2px 10px rgba(21,101,192,.3);
+    }
+
+    /* forms */
+    .form-panel { display: none; }
+    .form-panel.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: .8rem; font-weight: 600;
+      color: var(--blue-dark); margin-bottom: 6px; letter-spacing: .02em;
+    }
+    .field input, .field select {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 9px; font-family: 'Barlow', sans-serif;
+      font-size: .925rem; color: var(--blue-dark);
+      background: white; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      appearance: none;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(30,136,229,.15);
+    }
+    .field input::placeholder { color: #b0c4de; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .forgot {
+      display: block; text-align: right; margin-top: -8px; margin-bottom: 16px;
+      font-size: .8rem; color: var(--blue-light); text-decoration: none;
+      font-weight: 500;
+    }
+    .forgot:hover { text-decoration: underline; }
+
+    .btn-primary {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      color: white; border: none; border-radius: 10px;
+      font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 700;
+      cursor: pointer; letter-spacing: .02em;
+      box-shadow: 0 4px 16px rgba(21,101,192,.35);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 7px 22px rgba(21,101,192,.45);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .divider-h {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: var(--gray); font-size: .8rem;
+    }
+    .divider-h::before, .divider-h::after {
+      content: ''; flex: 1; height: 1px; background: var(--gray-light);
+    }
+
+    .role-select-wrap { position: relative; }
+    .role-select-wrap::after {
+      content: '▾'; position: absolute; right: 14px; top: 50%;
+      transform: translateY(-50%); color: var(--gray); pointer-events: none;
+      font-size: .85rem;
+    }
+
+    .terms {
+      font-size: .75rem; color: var(--gray); text-align: center;
+      margin-top: 14px; line-height: 1.5;
+    }
+    .terms a { color: var(--blue-light); text-decoration: none; }
+    .terms a:hover { text-decoration: underline; }
+
+    /* ── responsive ── */
+    @media (max-width: 860px) {
+      .page { grid-template-columns: 1fr; }
+      .brand { display: none; }
+      .card-panel { padding: 24px 16px; }
+      html, body { overflow: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="bg-stripes"></div>
+  <div class="shape shape-1"></div>
+  <div class="shape shape-2"></div>
+  <div class="shape shape-3"></div>
+</div>
+
+<div class="page">
+
+  <!-- Brand side -->
+  <div class="brand">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        Transporte Santa Marta
+        <span>Sucursal Santiago del Estero</span>
+      </div>
+    </div>
+
+    <h1 class="brand-headline">
+      Tu paquete,<br/>
+      siempre <em>bajo control.</em>
+    </h1>
+
+    <p class="brand-desc">
+      Sistema de gestión integral para el seguimiento de envíos, 
+      control de pagos y atención al cliente de la sucursal 
+      Santiago del Estero.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-num">240+</span>
+        <span class="stat-label">Envíos semanales</span>
+      </div>
+      <div class="divider-v"></div>
+      <div class="stat">
+        <span class="stat-num">2</span>
+        <span class="stat-label">Camiones por semana</span>
+      </div>
+      <div class="divider-v"></div>
+      <div class="stat">
+        <span class="stat-num">24hs</span>
+        <span class="stat-label">Seguimiento en línea</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card side -->
+  <div class="card-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Bienvenido</div>
+        <div class="card-sub">Ingresá o creá tu cuenta para continuar</div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Iniciar sesión</button>
+        <button class="tab-btn" onclick="switchTab('register')">Registrarse</button>
+      </div>
+
+      <!-- LOGIN -->
+      
+<div class="form-panel active" id="panel-login">
+  {% if error %}
+    <div style="background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:9px;font-size:.85rem;margin-bottom:16px;">
+      {{ error }}
+    </div>
+  {% endif %}
+  <form method="POST" action="{% url 'inicio' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="login"/>
+    <div class="field">
+      <label>Usuario</label>
+      <input type="text" name="username" placeholder="Tu usuario"/>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" name="password" placeholder="••••••••"/>
+    </div>
+    <button type="submit" class="btn-primary">Ingresar al sistema</button>
+  </form>
+</div>
+
+      <!-- REGISTER -->
+<div class="form-panel" id="panel-register">
+  <form method="POST" action="{% url 'registro_cliente' %}">
+    {% csrf_token %}
+    <div class="field-row">
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" name="first_name" placeholder="Juan"/>
+      </div>
+      <div class="field">
+        <label>Apellido</label>
+        <input type="text" name="last_name" placeholder="Pérez"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Usuario</label>
+      <input type="text" name="username" placeholder="juanperez"/>
+    </div>
+    <div class="field">
+      <label>DNI / CUIT</label>
+      <input type="text" name="dni" placeholder="20-12345678-9"/>
+    </div>
+    <div class="field">
+      <label>Teléfono</label>
+      <input type="tel" name="telefono" placeholder="+54 385 000 0000"/>
+    </div>
+    <div class="field">
+      <label>Correo electrónico</label>
+      <input type="email" name="email" placeholder="tu@correo.com"/>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" name="password1" placeholder="Mínimo 8 caracteres"/>
+    </div>
+    <div class="field">
+      <label>Repetir contraseña</label>
+      <input type="password" name="password2" placeholder="Repetí la contraseña"/>
+    </div>
+    <button type="submit" class="btn-primary">Crear cuenta</button>
+  </form>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+    document.getElementById('panel-login').classList.toggle('active', tab === 'login');
+    document.getElementById('panel-register').classList.toggle('active', tab === 'register');
+  }
+
+  function handleLogin() {
+    alert('Iniciando sesión... Redirigiendo al panel.');
+  }
+
+  function demoLogin() {
+    const role = document.getElementById('demo-role').value;
+    if (!role) { alert('Seleccioná un rol para el acceso demo.'); return; }
+    const dest = { admin: 'Panel de Administrador', empleado: 'Panel de Empleado', cliente: 'Panel de Cliente' };
+    alert('Acceso demo como: ' + dest[role] + '\n\n(Aquí iría la redirección a /' + role + '/dashboard)');
+  }
+</script>
+
+</body>
+</html>

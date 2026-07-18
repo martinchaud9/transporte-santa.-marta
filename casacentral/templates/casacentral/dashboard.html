@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Casa Central Buenos Aires — Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red-dark: #7f1d1d; --red-mid: #991b1b; --red: #dc2626;
+      --red-light: #ef4444; --red-bright: #f87171;
+      --white: #ffffff; --off-white: #fff5f5;
+      --gray-light: #fde8e8; --gray: #c8a0a0; --text: #3b1a1a;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; display: flex; }
+    .sidebar { width: var(--sidebar-w); background: linear-gradient(180deg, var(--red-dark) 0%, var(--red-mid) 100%); min-height: 100vh; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; box-shadow: 4px 0 24px rgba(127,29,29,.25); }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--red-light), var(--red-bright)); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(239,68,68,.4); }
+    .sidebar-logo-icon svg { width: 20px; height: 20px; fill: white; }
+    .sidebar-logo-text { font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; font-weight: 700; color: white; line-height: 1.2; }
+    .sidebar-logo-text span { display: block; font-size: .65rem; font-weight: 500; opacity: .55; letter-spacing: .08em; text-transform: uppercase; }
+    .sidebar-section { padding: 20px 12px 8px; font-size: .65rem; font-weight: 700; color: rgba(255,255,255,.3); letter-spacing: .12em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin: 2px 8px; border-radius: 9px; cursor: pointer; color: rgba(255,255,255,.6); font-size: .9rem; font-weight: 500; transition: all .2s; text-decoration: none; }
+    .nav-item:hover { background: rgba(255,255,255,.08); color: white; }
+    .nav-item.active { background: linear-gradient(135deg, var(--red), var(--red-light)); color: white; box-shadow: 0 4px 14px rgba(220,38,38,.4); }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+    .user-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.07); }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--red-light), var(--red-bright)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: white; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: .85rem; font-weight: 600; color: white; }
+    .user-role { font-size: .7rem; color: var(--gray); }
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--gray-light); box-shadow: 0 2px 8px rgba(127,29,29,.06); position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--red-dark); }
+    .topbar-badge { background: var(--red); color: white; font-size: .7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .06em; }
+    .topbar-date { font-size: .82rem; color: var(--gray); }
+    .content { padding: 28px 32px; flex: 1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 28px; }
+    .stat-card { background: white; border-radius: 14px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(127,29,29,.07); border: 1px solid var(--gray-light); display: flex; flex-direction: column; gap: 12px; }
+    .stat-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .stat-card-label { font-size: .78rem; font-weight: 600; color: var(--gray); letter-spacing: .04em; text-transform: uppercase; }
+    .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .stat-icon svg { width: 20px; height: 20px; }
+    .stat-icon.red { background: #fee2e2; } .stat-icon.red svg { color: var(--red); }
+    .stat-icon.orange { background: #ffedd5; } .stat-icon.orange svg { color: #ea580c; }
+    .stat-icon.green { background: #dcfce7; } .stat-icon.green svg { color: #16a34a; }
+    .stat-card-num { font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--red-dark); line-height: 1; }
+    .stat-card-sub { font-size: .78rem; color: var(--gray); }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--red-dark); }
+    .btn { padding: 9px 18px; border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .875rem; font-weight: 600; cursor: pointer; transition: all .2s; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, var(--red), var(--red-light)); color: white; box-shadow: 0 3px 12px rgba(220,38,38,.3); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(220,38,38,.4); }
+    .btn-outline { background: white; color: var(--red); border: 1.5px solid var(--gray-light); }
+    .btn-outline:hover { background: var(--off-white); border-color: var(--red-light); }
+    .btn-despachar { background: linear-gradient(135deg, #16a34a, #22c55e); color: white; box-shadow: 0 3px 12px rgba(22,163,74,.3); font-size: 1rem; padding: 12px 28px; }
+    .btn-despachar:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(22,163,74,.4); }
+    .two-col { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
+    .table-card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(127,29,29,.07); border: 1px solid var(--gray-light); overflow: hidden; }
+    .table-card-header { padding: 18px 24px; border-bottom: 1px solid var(--gray-light); display: flex; align-items: center; justify-content: space-between; }
+    .table-card-title { font-size: 1rem; font-weight: 700; color: var(--red-dark); }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 12px 20px; text-align: left; font-size: .72rem; font-weight: 700; color: var(--gray); letter-spacing: .06em; text-transform: uppercase; background: var(--off-white); border-bottom: 1px solid var(--gray-light); }
+    tbody tr { border-bottom: 1px solid var(--gray-light); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fff8f8; }
+    tbody td { padding: 13px 20px; font-size: .875rem; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .badge-pendiente { background: #fef9c3; color: #a16207; }
+    .badge-transito { background: #dbeafe; color: #1d4ed8; }
+    .form-card { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(127,29,29,.07); border: 1px solid var(--gray-light); }
+    .form-card-title { font-size: 1rem; font-weight: 700; color: var(--red-dark); margin-bottom: 20px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+    .field input, .field select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-light); border-radius: 8px; font-family: 'Barlow', sans-serif; font-size: .875rem; outline: none; transition: border-color .2s; }
+    .field input:focus, .field select:focus { border-color: var(--red-light); }
+    .field input::placeholder { color: #c8a0a0; }
+    .dir-field { display: none; }
+    .dir-field.visible { display: block; }
+    .despachar-card { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1.5px solid #86efac; border-radius: 14px; padding: 24px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .despachar-info { display: flex; flex-direction: column; gap: 4px; }
+    .despachar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: #15803d; }
+    .despachar-sub { font-size: .82rem; color: #16a34a; }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    </div>
+    <div class="sidebar-logo-text">Santa Marta<span>Casa Central — Buenos Aires</span></div>
+  </div>
+
+  <div class="sidebar-section">Operaciones</div>
+  <a href="#" class="nav-item active" onclick="showPage('dashboard')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('nuevo-envio')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Nuevo envío
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('en-transito')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>En tránsito
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('entregados')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Entregados
+  </a>
+
+  <div class="sidebar-footer">
+    <a href="/" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);text-decoration:none;font-size:.82rem;font-weight:600;margin-bottom:10px;transition:background .2s;">
+      <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;"><path d="M10 19l-7-7 7-7v4h8v6h-8v4z"/></svg>
+      Volver al inicio
+    </a>
+    <div class="user-badge">
+      <div class="user-avatar">BA</div>
+      <div class="user-info">
+        <div class="user-name">Admin Buenos Aires</div>
+        <div class="user-role">Casa Central</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <span class="topbar-badge">SIMULACIÓN</span>
+    </div>
+    <span class="topbar-date" id="topbar-date"></span>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Envíos pendientes</span><div class="stat-icon red"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_pendientes.count }}</div>
+          <div class="stat-card-sub">Listos para despachar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">En tránsito</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_transito.count }}</div>
+          <div class="stat-card-sub">Camino a Santiago</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Entregados</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
+          <div class="stat-card-num">{{ envios_entregados.count }}</div>
+          <div class="stat-card-sub">Completados</div>
+        </div>
+      </div>
+
+      {% if envios_pendientes.count > 0 %}
+      <div class="despachar-card">
+        <div class="despachar-info">
+          <div class="despachar-title">¿Listo para despachar el camión?</div>
+          <div class="despachar-sub">{{ envios_pendientes.count }} envíos pendientes serán marcados como "En tránsito"</div>
+        </div>
+        <form method="POST" action="{% url 'casacentral_despachar' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-despachar">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+            Despachar camión →
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      <div class="section-header">
+        <div class="section-title">Envíos pendientes de despacho</div>
+        <button class="btn btn-primary" onclick="showPage('nuevo-envio')">+ Nuevo envío</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in envios_pendientes %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-pendiente">Pendiente</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NUEVO ENVIO -->
+    <div id="page-nuevo-envio" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Registrar Nuevo Envío</div>
+        <button class="btn btn-outline" onclick="showPage('dashboard')">← Volver</button>
+      </div>
+      <div class="two-col">
+        <div class="form-card">
+          <div class="form-card-title">Datos del envío</div>
+          <form method="POST" action="{% url 'casacentral_nuevo_envio' %}">
+            {% csrf_token %}
+            <div class="field"><label>Nombre del destinatario *</label><input type="text" name="destinatario_nombre" placeholder="Juan Pérez" required/></div>
+            <div class="field"><label>DNI / CUIT *</label><input type="text" name="destinatario_dni" placeholder="20-12345678-9" required/></div>
+            <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" placeholder="+54 385 000 0000" required/></div>
+            <div class="field"><label>Contenido del paquete *</label><input type="text" name="contenido" placeholder="Ej: Ropa, electrónica..." required/></div>
+            <div class="field"><label>Precio del servicio *</label><input type="number" name="precio" placeholder="0.00" step="0.01" required/></div>
+            <div class="field">
+              <label>Modalidad de entrega *</label>
+              <select name="modalidad" onchange="toggleDireccion(this)">
+                <option value="sucursal">Retiro en sucursal</option>
+                <option value="domicilio">Entrega a domicilio</option>
+              </select>
+            </div>
+            <div class="field dir-field" id="dir-field">
+              <label>Dirección de entrega *</label>
+              <input type="text" name="direccion" placeholder="Calle, número, ciudad"/>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
+              <button type="button" class="btn btn-outline" onclick="showPage('dashboard')">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Registrar envío</button>
+            </div>
+          </form>
+        </div>
+        <div>
+          <div class="form-card">
+            <div class="form-card-title">Información importante</div>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Los envíos registrados quedan en estado <strong>Pendiente</strong> hasta que se despache el camión.</p>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Al despachar el camión, todos los envíos pendientes pasan a estado <strong>En tránsito</strong> y son visibles para la sucursal de Santiago del Estero.</p>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;">Si el destinatario ya existe en el sistema, sus datos se reutilizan automáticamente.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EN TRANSITO -->
+    <div id="page-en-transito" style="display:none;">
+      <div class="section-header"><div class="section-title">Envíos en tránsito</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in envios_transito %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-transito">En tránsito</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos en tránsito</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ENTREGADOS -->
+    <div id="page-entregados" style="display:none;">
+      <div class="section-header"><div class="section-title">Envíos Entregados</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in envios_entregados %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge" style="background:#f0fdf4;color:#16a34a;">Entregado</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos entregados aún</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const d = new Date();
+  document.getElementById('topbar-date').textContent =
+    d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  function showPage(page) {
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
+    const target = document.getElementById('page-' + page);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const titles = {
+      dashboard: 'Dashboard', 'nuevo-envio': 'Nuevo Envío',
+      'en-transito': 'En Tránsito', entregados: 'Envíos Entregados'
+    };
+    document.getElementById('topbar-title').textContent = titles[page] || 'Panel';
+  }
+
+  function toggleDireccion(sel) {
+    const field = document.getElementById('dir-field');
+    field.classList.toggle('visible', sel.value === 'domicilio');
+  }
+</script>
+</body>
+</html>

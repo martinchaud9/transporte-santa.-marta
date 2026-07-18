@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi Panel — Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue-dark: #0a2240; --blue-mid: #0d3b6e; --blue: #1565c0;
+      --blue-light: #1e88e5; --blue-bright: #42a5f5;
+      --white: #ffffff; --off-white: #f0f6ff;
+      --gray-light: #e3edf8; --gray: #8baac8; --text: #1a2e44;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; }
+
+    /* NAVBAR */
+    .navbar {
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+      box-shadow: 0 2px 12px rgba(10,34,64,.2);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .navbar-brand { display: flex; align-items: center; gap: 10px; }
+    .navbar-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .navbar-icon svg { width: 18px; height: 18px; fill: white; }
+    .navbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: white; }
+    .navbar-title span { font-size: .7rem; font-weight: 500; opacity: .6; letter-spacing: .08em; text-transform: uppercase; display: block; }
+    .navbar-right { display: flex; align-items: center; gap: 16px; }
+    .navbar-user { font-size: .85rem; color: rgba(255,255,255,.7); }
+    .navbar-user strong { color: white; }
+    .logout-form { display: inline; }
+    .btn-logout { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: white; padding: 6px 14px; border-radius: 8px; font-family: 'Barlow', sans-serif; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn-logout:hover { background: rgba(255,255,255,.2); }
+
+    /* TABS */
+    .tabs-bar {
+      background: white;
+      border-bottom: 1px solid var(--gray-light);
+      padding: 0 32px;
+      display: flex; gap: 4px;
+      box-shadow: 0 1px 4px rgba(10,34,64,.05);
+    }
+    .tab-btn {
+      padding: 14px 20px; border: none; background: transparent;
+      font-family: 'Barlow', sans-serif; font-size: .9rem; font-weight: 600;
+      color: var(--gray); cursor: pointer; border-bottom: 3px solid transparent;
+      transition: all .2s; display: flex; align-items: center; gap: 8px;
+    }
+    .tab-btn:hover { color: var(--blue); }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab-btn svg { width: 16px; height: 16px; }
+
+    /* CONTENT */
+    .content { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+
+    /* CARDS */
+    .envio-card {
+      background: white; border-radius: 14px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 12px rgba(10,34,64,.07);
+      border: 1px solid var(--gray-light);
+      margin-bottom: 16px;
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 16px; align-items: center;
+      transition: box-shadow .2s;
+    }
+    .envio-card:hover { box-shadow: 0 4px 20px rgba(10,34,64,.12); }
+    .envio-codigo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 6px; }
+    .envio-info { display: flex; gap: 20px; flex-wrap: wrap; }
+    .envio-detail { font-size: .82rem; color: var(--gray); }
+    .envio-detail strong { color: var(--text); font-weight: 600; }
+    .envio-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+
+    /* PROGRESS BAR */
+    .progress-bar {
+      display: flex; align-items: center; gap: 0;
+      margin-top: 12px;
+    }
+    .step {
+      display: flex; flex-direction: column; align-items: center;
+      flex: 1; position: relative;
+    }
+    .step-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--gray-light); border: 2px solid var(--gray-light);
+      z-index: 1;
+    }
+    .step-dot.done { background: var(--blue); border-color: var(--blue); }
+    .step-dot.current { background: white; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.2); }
+    .step-label { font-size: .65rem; color: var(--gray); margin-top: 5px; text-align: center; }
+    .step-label.done { color: var(--blue); font-weight: 600; }
+    .step-label.current { color: var(--blue-dark); font-weight: 700; }
+    .step-line {
+      height: 2px; background: var(--gray-light);
+      flex: 1; margin-top: -19px;
+    }
+    .step-line.done { background: var(--blue); }
+
+    /* BADGES */
+    .badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+    .badge-pendiente { background: #fef9c3; color: #a16207; }
+    .badge-en_transito { background: #dbeafe; color: #1d4ed8; }
+    .badge-en_sucursal { background: #ede9fe; color: #6d28d9; }
+    .badge-en_reparto { background: #ffedd5; color: #c2410c; }
+    .badge-entregado { background: #dcfce7; color: #15803d; }
+    .badge-cancelado { background: #fee2e2; color: #dc2626; }
+
+    /* BUTTONS */
+    .btn { padding: 8px 16px; border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .2s; border: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 3px 10px rgba(21,101,192,.3); }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-outline { background: white; color: var(--blue); border: 1.5px solid var(--gray-light); }
+    .btn-outline:hover { background: var(--off-white); border-color: var(--blue-light); }
+    .btn-danger { background: white; color: #dc2626; border: 1.5px solid #fecaca; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--gray); }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: .4; }
+    .empty-state p { font-size: .95rem; }
+
+    /* FORM */
+    .form-card { background: white; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); max-width: 560px; }
+    .form-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--blue-dark); margin-bottom: 6px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-light); border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--blue-light); }
+    .field textarea { resize: vertical; min-height: 100px; }
+
+    /* SECTION TITLE */
+    .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="navbar-icon">
+      <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+    </div>
+    <div class="navbar-title">
+      Transporte Santa Marta
+      <span>Portal del Cliente</span>
+    </div>
+  </div>
+  <div class="navbar-right">
+    <span class="navbar-user">Hola, <strong>{{ user.first_name }}</strong></span>
+    <form method="POST" action="{% url 'logout' %}" class="logout-form">
+      {% csrf_token %}
+      <button type="submit" class="btn-logout">Cerrar sesión</button>
+    </form>
+  </div>
+</nav>
+
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="showTab('mis-envios')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+    Mis envíos
+  </button>
+  <button class="tab-btn" onclick="showTab('historial')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    Historial
+  </button>
+  <button class="tab-btn" onclick="showTab('reclamos')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>
+    Reclamos
+  </button>
+  <button class="tab-btn" onclick="showTab('contacto')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+    Contacto
+  </button>
+</div>
+
+<div class="content">
+
+  <!-- MIS ENVIOS -->
+  <div id="tab-mis-envios">
+    <div class="section-title">Mis envíos activos</div>
+    {% for envio in envios %}
+      {% if envio.estado != 'entregado' and envio.estado != 'cancelado' %}
+      <div class="envio-card">
+        <div>
+          <div class="envio-codigo">{{ envio.codigo }}</div>
+          <div class="envio-info">
+            <div class="envio-detail"><strong>Modalidad:</strong> {{ envio.get_modalidad_display }}</div>
+            <div class="envio-detail"><strong>Contenido:</strong> {{ envio.contenido }}</div>
+            {% if envio.direccion_entrega %}<div class="envio-detail"><strong>Dirección:</strong> {{ envio.direccion_entrega }}</div>{% endif %}
+          </div>
+          <div class="progress-bar" style="margin-top:14px;">
+            <div class="step">
+              <div class="step-dot {% if envio.estado == 'pendiente' %}current{% else %}done{% endif %}"></div>
+              <div class="step-label {% if envio.estado == 'pendiente' %}current{% elif envio.estado != 'pendiente' %}done{% endif %}">Pendiente</div>
+            </div>
+            <div class="step-line {% if envio.estado != 'pendiente' %}done{% endif %}"></div>
+            <div class="step">
+              <div class="step-dot {% if envio.estado == 'en_transito' %}current{% elif envio.estado in 'en_sucursal,en_reparto,entregado' %}done{% endif %}"></div>
+              <div class="step-label {% if envio.estado == 'en_transito' %}current{% elif envio.estado in 'en_sucursal,en_reparto,entregado' %}done{% endif %}">En tránsito</div>
+            </div>
+            <div class="step-line {% if envio.estado == 'en_sucursal' or envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step">
+              <div class="step-dot {% if envio.estado == 'en_sucursal' %}current{% elif envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+              <div class="step-label {% if envio.estado == 'en_sucursal' %}current{% elif envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}">En sucursal</div>
+            </div>
+            <div class="step-line {% if envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step">
+              <div class="step-dot {% if envio.estado == 'en_reparto' %}current{% elif envio.estado == 'entregado' %}done{% endif %}"></div>
+              <div class="step-label {% if envio.estado == 'en_reparto' %}current{% elif envio.estado == 'entregado' %}done{% endif %}">En reparto</div>
+            </div>
+            <div class="step-line {% if envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step">
+              <div class="step-dot {% if envio.estado == 'entregado' %}done{% endif %}"></div>
+              <div class="step-label {% if envio.estado == 'entregado' %}done{% endif %}">Entregado</div>
+            </div>
+          </div>
+        </div>
+        <div class="envio-actions">
+          <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
+          <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}')">Generar reclamo</button>
+        </div>
+      </div>
+      {% endif %}
+    {% empty %}
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+        <p>No tenés envíos activos en este momento.</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="tab-historial" style="display:none;">
+    <div class="section-title">Historial de pedidos</div>
+    {% for envio in envios %}
+    <div class="envio-card">
+      <div>
+        <div class="envio-codigo">{{ envio.codigo }}</div>
+        <div class="envio-info">
+          <div class="envio-detail"><strong>Modalidad:</strong> {{ envio.get_modalidad_display }}</div>
+          <div class="envio-detail"><strong>Contenido:</strong> {{ envio.contenido }}</div>
+          <div class="envio-detail"><strong>Fecha:</strong> {{ envio.fecha_registro|date:"d/m/Y" }}</div>
+        </div>
+      </div>
+      <div class="envio-actions">
+        <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+      <p>No tenés pedidos registrados aún.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- RECLAMOS -->
+  <div id="tab-reclamos" style="display:none;">
+    <div class="section-title">Generar un reclamo</div>
+    <div class="form-card">
+      <form method="POST" action="{% url 'cliente_reclamo' %}">
+        {% csrf_token %}
+        <div class="field">
+          <label>Envío relacionado *</label>
+          <select name="envio_id" required>
+            <option value="">Seleccionar envío...</option>
+            {% for envio in envios %}
+            <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.get_estado_display }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Tipo de problema *</label>
+          <select name="tipo" required>
+            <option value="danado">Paquete dañado</option>
+            <option value="perdida">Pérdida del paquete</option>
+            <option value="demora">Demora en la entrega</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Descripción *</label>
+          <textarea name="descripcion" placeholder="Describí el problema con detalle..." required></textarea>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button type="submit" class="btn btn-primary">Enviar reclamo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTACTO -->
+  <div id="tab-contacto" style="display:none;">
+    <div class="section-title">Contactar a la sucursal</div>
+    <div class="form-card">
+      <p style="font-size:.85rem;color:var(--gray);margin-bottom:20px;line-height:1.6;">Usá este formulario para consultas generales. Para problemas con un envío específico, usá la sección <strong>Reclamos</strong>.</p>
+      <div class="field">
+        <label>Motivo de la consulta *</label>
+        <select>
+          <option>Consulta sobre un envío</option>
+          <option>Información sobre tarifas</option>
+          <option>Cambio de modalidad de entrega</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Mensaje *</label>
+        <textarea placeholder="Escribí tu consulta aquí..."></textarea>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="alert('Mensaje enviado. Te responderemos a la brevedad.')">Enviar mensaje</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL RECLAMO RÁPIDO -->
+<div id="modal-reclamo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:28px;width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--blue-dark);margin-bottom:20px;">Generar Reclamo</div>
+    <form method="POST" action="{% url 'cliente_reclamo' %}">
+      {% csrf_token %}
+      <input type="hidden" name="envio_id" id="modal-envio-id"/>
+      <div class="field">
+        <label>Envío: <strong id="modal-envio-codigo"></strong></label>
+      </div>
+      <div class="field">
+        <label>Tipo de problema *</label>
+        <select name="tipo">
+          <option value="danado">Paquete dañado</option>
+          <option value="perdida">Pérdida del paquete</option>
+          <option value="demora">Demora en la entrega</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Descripción *</label>
+        <textarea name="descripcion" placeholder="Describí el problema..." required></textarea>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Enviar reclamo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function showTab(tab) {
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  function abrirReclamo(id, codigo) {
+    document.getElementById('modal-envio-id').value = id;
+    document.getElementById('modal-envio-codigo').textContent = codigo;
+    const modal = document.getElementById('modal-reclamo');
+    modal.style.display = 'flex';
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-reclamo').style.display = 'none';
+  }
+</script>
+</body>
+</html>

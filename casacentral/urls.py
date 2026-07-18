@@ -1,0 +1,8 @@
+from django.urls import path
+from casacentral import views
+
+urlpatterns = [
+    path('', views.dashboard_view, name='casacentral_dashboard'),
+    path('envios/nuevo/', views.nuevo_envio_view, name='casacentral_nuevo_envio'),
+    path('despachar/', views.despachar_camion_view, name='casacentral_despachar'),
+]

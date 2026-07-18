@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Administrador — Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue-dark:  #0a2240; --blue-mid: #0d3b6e; --blue: #1565c0;
+      --blue-light: #1e88e5; --blue-bright:#42a5f5; --white: #ffffff;
+      --off-white: #f0f6ff; --gray-light: #e3edf8; --gray: #8baac8;
+      --text: #1a2e44; --sidebar-w: 240px;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; display: flex; }
+    .sidebar { width: var(--sidebar-w); background: linear-gradient(180deg, var(--blue-dark) 0%, var(--blue-mid) 100%); min-height: 100vh; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; box-shadow: 4px 0 24px rgba(10,34,64,.25); }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(30,136,229,.4); }
+    .sidebar-logo-icon svg { width: 20px; height: 20px; fill: white; }
+    .sidebar-logo-text { font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; font-weight: 700; color: white; line-height: 1.2; }
+    .sidebar-logo-text span { display: block; font-size: .65rem; font-weight: 500; opacity: .55; letter-spacing: .08em; text-transform: uppercase; }
+    .sidebar-section { padding: 20px 12px 8px; font-size: .65rem; font-weight: 700; color: rgba(255,255,255,.3); letter-spacing: .12em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin: 2px 8px; border-radius: 9px; cursor: pointer; color: rgba(255,255,255,.6); font-size: .9rem; font-weight: 500; transition: all .2s; text-decoration: none; }
+    .nav-item:hover { background: rgba(255,255,255,.08); color: white; }
+    .nav-item.active { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 4px 14px rgba(21,101,192,.4); }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+    .user-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.07); }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: white; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: .85rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: .7rem; color: var(--gray); }
+    .logout-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,.4); padding: 4px; transition: color .2s; }
+    .logout-btn:hover { color: white; }
+    .logout-btn svg { width: 16px; height: 16px; }
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--gray-light); box-shadow: 0 2px 8px rgba(10,34,64,.06); position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--blue-dark); }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-date { font-size: .82rem; color: var(--gray); }
+    .notif-btn { width: 36px; height: 36px; border-radius: 9px; background: var(--off-white); border: 1.5px solid var(--gray-light); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: background .2s; }
+    .notif-btn:hover { background: var(--gray-light); }
+    .notif-btn svg { width: 18px; height: 18px; color: var(--blue-mid); }
+    .notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; border: 2px solid white; }
+    .content { padding: 28px 32px; flex: 1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
+    .stat-card { background: white; border-radius: 14px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); display: flex; flex-direction: column; gap: 12px; animation: fadeUp .4s ease both; }
+    .stat-card:nth-child(1){animation-delay:.05s} .stat-card:nth-child(2){animation-delay:.1s} .stat-card:nth-child(3){animation-delay:.15s} .stat-card:nth-child(4){animation-delay:.2s}
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    .stat-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .stat-card-label { font-size: .78rem; font-weight: 600; color: var(--gray); letter-spacing: .04em; text-transform: uppercase; }
+    .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .stat-icon svg { width: 20px; height: 20px; }
+    .stat-icon.blue{background:#dbeafe} .stat-icon.blue svg{color:var(--blue)}
+    .stat-icon.green{background:#dcfce7} .stat-icon.green svg{color:#16a34a}
+    .stat-icon.orange{background:#ffedd5} .stat-icon.orange svg{color:#ea580c}
+    .stat-icon.purple{background:#ede9fe} .stat-icon.purple svg{color:#7c3aed}
+    .stat-card-num { font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--blue-dark); line-height: 1; }
+    .stat-card-sub { font-size: .78rem; color: var(--gray); }
+    .stat-badge { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .stat-badge.up{background:#dcfce7;color:#16a34a} .stat-badge.down{background:#fee2e2;color:#dc2626}
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--blue-dark); }
+    .btn { padding: 9px 18px; border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .875rem; font-weight: 600; cursor: pointer; transition: all .2s; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 3px 12px rgba(21,101,192,.3); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(21,101,192,.4); }
+    .btn-outline { background: white; color: var(--blue); border: 1.5px solid var(--gray-light); }
+    .btn-outline:hover { background: var(--off-white); border-color: var(--blue-light); }
+    .two-col { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+    .table-card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); overflow: hidden; }
+    .table-card-header { padding: 18px 24px; border-bottom: 1px solid var(--gray-light); display: flex; align-items: center; justify-content: space-between; }
+    .table-card-title { font-size: 1rem; font-weight: 700; color: var(--blue-dark); }
+    .search-box { display: flex; align-items: center; gap: 8px; background: var(--off-white); border: 1.5px solid var(--gray-light); border-radius: 8px; padding: 7px 12px; }
+    .search-box svg { width: 15px; height: 15px; color: var(--gray); flex-shrink: 0; }
+    .search-box input { border: none; background: transparent; outline: none; font-family: 'Barlow', sans-serif; font-size: .85rem; color: var(--text); width: 160px; }
+    .search-box input::placeholder { color: var(--gray); }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 12px 20px; text-align: left; font-size: .72rem; font-weight: 700; color: var(--gray); letter-spacing: .06em; text-transform: uppercase; background: var(--off-white); border-bottom: 1px solid var(--gray-light); }
+    tbody tr { border-bottom: 1px solid var(--gray-light); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8faff; }
+    tbody td { padding: 13px 20px; font-size: .875rem; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .badge-transit{background:#dbeafe;color:#1d4ed8} .badge-sucursal{background:#dcfce7;color:#15803d}
+    .badge-reparto{background:#ffedd5;color:#c2410c} .badge-entregado{background:#f0fdf4;color:#16a34a}
+    .badge-pendiente{background:#fef9c3;color:#a16207} .badge-reclamo{background:#fee2e2;color:#dc2626}
+    .badge-proceso{background:#dbeafe;color:#1d4ed8}
+    .action-btn { padding: 5px 10px; border-radius: 6px; font-size: .75rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--gray-light); background: white; color: var(--blue); transition: all .15s; }
+    .action-btn:hover { background: var(--off-white); border-color: var(--blue-light); }
+    .side-panel { display: flex; flex-direction: column; gap: 18px; }
+    .panel-card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(10,34,64,.07); border: 1px solid var(--gray-light); overflow: hidden; }
+    .panel-card-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-light); font-size: .95rem; font-weight: 700; color: var(--blue-dark); }
+    .panel-card-body { padding: 16px 20px; }
+    .activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--gray-light); }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .dot-blue{background:var(--blue-light)} .dot-green{background:#22c55e} .dot-orange{background:#f97316}
+    .activity-text { font-size: .82rem; color: var(--text); line-height: 1.4; flex: 1; }
+    .activity-text strong { font-weight: 600; }
+    .activity-time { font-size: .72rem; color: var(--gray); margin-top: 2px; }
+    .reclamo-item { padding: 12px 0; border-bottom: 1px solid var(--gray-light); display: flex; flex-direction: column; gap: 6px; }
+    .reclamo-item:last-child { border-bottom: none; }
+    .reclamo-top { display: flex; align-items: center; justify-content: space-between; }
+    .reclamo-codigo { font-size: .8rem; font-weight: 700; color: var(--blue-dark); }
+    .reclamo-desc { font-size: .8rem; color: var(--gray); }
+    .field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--blue-dark); margin-bottom: 6px; }
+    .field input, .field select { width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-light); border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+    .field input:focus, .field select:focus { border-color: var(--blue-light); }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    </div>
+    <div class="sidebar-logo-text">Santa Marta<span>Panel Administrador</span></div>
+  </div>
+
+  <div class="sidebar-section">Principal</div>
+  <a href="#" class="nav-item active" onclick="showPage('dashboard')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('envios')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>Envíos
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('clientes')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Clientes
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('pagos')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>Pagos
+  </a>
+
+  <div class="sidebar-section">Gestión</div>
+  <a href="#" class="nav-item" onclick="showPage('empleados')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Empleados
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('reclamos')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>Reclamos
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('reportes')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>Reportes
+  </a>
+  <a href="#" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Configuración
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="user-avatar">AD</div>
+      <div class="user-info">
+        <div class="user-name">Administrador</div>
+        <div class="user-role">Santa Marta Sgo.</div>
+      </div>
+      <form method="POST" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="logout-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <span class="topbar-date" id="topbar-date"></span>
+      <div class="notif-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Envíos hoy</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
+          <div class="stat-card-num">38</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 12%</span><span class="stat-card-sub">vs. ayer</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Entregas hoy</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
+          <div class="stat-card-num">24</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 8%</span><span class="stat-card-sub">vs. ayer</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Pendientes</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">14</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge down">↓ 3%</span><span class="stat-card-sub">vs. ayer</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Pagos registrados</span><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div></div>
+          <div class="stat-card-num">$18.4k</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 5%</span><span class="stat-card-sub">esta semana</span></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="section-header">
+            <div class="section-title">Envíos recientes</div>
+            <button class="btn btn-outline" onclick="showPage('envios')">Ver todos</button>
+          </div>
+          <div class="table-card">
+            <div class="table-card-header">
+              <span class="table-card-title">Últimos movimientos</span>
+              <div class="search-box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input type="text" placeholder="Buscar código..."/></div>
+            </div>
+            <table>
+              <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
+              <tbody>
+                <tr><td><strong>ENV-0041</strong></td><td>García, Luis</td><td>Domicilio</td><td><span class="badge badge-reparto">En reparto</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>Sucursal</td><td><span class="badge badge-sucursal">En sucursal</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>Domicilio</td><td><span class="badge badge-entregado">Entregado</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td><strong>ENV-0038</strong></td><td>Romero, Julia</td><td>Sucursal</td><td><span class="badge badge-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>Domicilio</td><td><span class="badge badge-pendiente">Pendiente</span></td><td><button class="action-btn">Ver</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="side-panel">
+          <div class="panel-card">
+            <div class="panel-card-header">Actividad reciente</div>
+            <div class="panel-card-body">
+              <div class="activity-item"><div class="activity-dot dot-green"></div><div><div class="activity-text"><strong>ENV-0039</strong> marcado como Entregado</div><div class="activity-time">Hace 12 min</div></div></div>
+              <div class="activity-item"><div class="activity-dot dot-blue"></div><div><div class="activity-text">Pago registrado para <strong>ENV-0040</strong></div><div class="activity-time">Hace 34 min</div></div></div>
+              <div class="activity-item"><div class="activity-dot dot-orange"></div><div><div class="activity-text">Incidencia en <strong>ENV-0036</strong>: paquete dañado</div><div class="activity-time">Hace 1 hora</div></div></div>
+              <div class="activity-item"><div class="activity-dot dot-blue"></div><div><div class="activity-text">Camión recepcionado — <strong>18 paquetes</strong></div><div class="activity-time">Hace 2 horas</div></div></div>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="panel-card-header">Reclamos pendientes</div>
+            <div class="panel-card-body">
+              <div class="reclamo-item"><div class="reclamo-top"><span class="reclamo-codigo">ENV-0035</span><span class="badge badge-reclamo">Nuevo</span></div><div class="reclamo-desc">Paquete no recibido — cliente reclama demora</div></div>
+              <div class="reclamo-item"><div class="reclamo-top"><span class="reclamo-codigo">ENV-0031</span><span class="badge badge-proceso">En proceso</span></div><div class="reclamo-desc">Dirección incorrecta — requiere reentrega</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLEADOS -->
+    <div id="page-empleados" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Gestión de Empleados</div>
+        <button class="btn btn-primary" onclick="showPage('nuevo-empleado')">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Nuevo empleado
+        </button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Nombre</th><th>DNI</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Rodríguez, María</strong></td><td>28.456.789</td><td>maria@santamarta.com</td><td>Empleado</td><td><span class="badge badge-sucursal">Activo</span></td><td><button class="action-btn">Editar</button></td></tr>
+            <tr><td><strong>Fernández, Jorge</strong></td><td>31.234.567</td><td>jorge@santamarta.com</td><td>Empleado</td><td><span class="badge badge-sucursal">Activo</span></td><td><button class="action-btn">Editar</button></td></tr>
+            <tr><td><strong>Suárez, Lucía</strong></td><td>35.678.901</td><td>lucia@santamarta.com</td><td>Empleado</td><td><span class="badge badge-pendiente">Inactivo</span></td><td><button class="action-btn">Editar</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NUEVO EMPLEADO -->
+    <div id="page-nuevo-empleado" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Registrar Nuevo Empleado</div>
+        <button class="btn btn-outline" onclick="showPage('empleados')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        <form method="POST" action="{% url 'registro_empleado' %}">
+          {% csrf_token %}
+          <div class="field-group">
+            <div class="field"><label>Nombre completo *</label><input type="text" name="first_name" placeholder="Ej: Juan Pérez"/></div>
+            <div class="field"><label>DNI *</label><input type="text" name="dni" placeholder="Ej: 30.123.456"/></div>
+            <div class="field"><label>Usuario *</label><input type="text" name="username" placeholder="juanperez"/></div>
+            <div class="field"><label>Correo electrónico *</label><input type="email" name="email" placeholder="empleado@santamarta.com"/></div>
+            <div class="field"><label>Teléfono</label><input type="tel" name="telefono" placeholder="+54 385 000 0000"/></div>
+            <div class="field"><label>Contraseña inicial *</label><input type="password" name="password1" placeholder="Mínimo 8 caracteres"/></div>
+            <div class="field"><label>Repetir contraseña *</label><input type="password" name="password2" placeholder="Repetí la contraseña"/></div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('empleados')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar empleado</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ENVIOS -->
+    <div id="page-envios" style="display:none;">
+      <div class="section-header"><div class="section-title">Gestión de Envíos</div></div>
+      <div class="table-card">
+        <div class="table-card-header">
+          <span class="table-card-title">Todos los envíos</span>
+          <div class="search-box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input type="text" placeholder="Buscar código..."/></div>
+        </div>
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ENV-0041</strong></td><td>García, Luis</td><td>28.456.789</td><td>Domicilio</td><td><span class="badge badge-reparto">En reparto</span></td><td><button class="action-btn">Ver</button></td></tr>
+            <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>32.111.222</td><td>Sucursal</td><td><span class="badge badge-sucursal">En sucursal</span></td><td><button class="action-btn">Ver</button></td></tr>
+            <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>25.333.444</td><td>Domicilio</td><td><span class="badge badge-entregado">Entregado</span></td><td><button class="action-btn">Ver</button></td></tr>
+            <tr><td><strong>ENV-0038</strong></td><td>Romero, Julia</td><td>30.555.666</td><td>Sucursal</td><td><span class="badge badge-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
+            <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>27.777.888</td><td>Domicilio</td><td><span class="badge badge-pendiente">Pendiente</span></td><td><button class="action-btn">Ver</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div id="page-clientes" style="display:none;">
+      <div class="section-header"><div class="section-title">Clientes</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Nombre</th><th>DNI/CUIT</th><th>Teléfono</th><th>Correo</th><th>Envíos</th></tr></thead>
+          <tbody>
+            {% for cliente in clientes %}
+            <tr>
+              <td><strong>{{ cliente.get_full_name|default:cliente.username }}</strong></td>
+              <td>{{ cliente.dni }}</td>
+              <td>{{ cliente.telefono|default:"—" }}</td>
+              <td>{{ cliente.email|default:"—" }}</td>
+              <td>{{ cliente.envios.count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay clientes registrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RECLAMOS -->
+    <div id="page-reclamos" style="display:none;">
+      <div class="section-header"><div class="section-title">Reclamos</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>N° Reclamo</th><th>Envío</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            <tr><td><strong>#001</strong></td><td>ENV-0035</td><td>García, Luis</td><td>Demora</td><td><span class="badge badge-reclamo">Nuevo</span></td><td><button class="action-btn">Gestionar</button></td></tr>
+            <tr><td><strong>#002</strong></td><td>ENV-0031</td><td>Martínez, Ana</td><td>Dirección incorrecta</td><td><span class="badge badge-proceso">En proceso</span></td><td><button class="action-btn">Gestionar</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" style="display:none;">
+      <div class="section-header"><div class="section-title">Reportes</div></div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:500px;">
+        <div class="field" style="margin-bottom:16px;">
+          <label>Tipo de reporte</label>
+          <select><option>Semanal</option><option>Mensual</option></select>
+        </div>
+        <div class="field" style="margin-bottom:24px;">
+          <label>Período</label>
+          <input type="month"/>
+        </div>
+        <button class="btn btn-primary" onclick="alert('Reporte generado correctamente.')">Generar reporte</button>
+      </div>
+    </div>
+
+    <!-- PAGOS -->
+    <div id="page-pagos" style="display:none;">
+      <div class="section-header"><div class="section-title">Pagos</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Envío</th><th>Cliente</th><th>Monto</th><th>Medio</th><th>Fecha</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>$2.500</td><td>Efectivo</td><td>05/06/2026</td><td><span class="badge badge-sucursal">Pagado</span></td></tr>
+            <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>$1.800</td><td>Transferencia</td><td>05/06/2026</td><td><span class="badge badge-sucursal">Pagado</span></td></tr>
+            <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>$3.200</td><td>—</td><td>—</td><td><span class="badge badge-pendiente">Pendiente</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const d = new Date();
+  document.getElementById('topbar-date').textContent =
+    d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  function showPage(page) {
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
+    const target = document.getElementById('page-' + page);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const titles = {
+      dashboard:'Dashboard', envios:'Gestión de Envíos', clientes:'Clientes',
+      pagos:'Pagos', empleados:'Empleados', 'nuevo-empleado':'Registrar Empleado',
+      reclamos:'Reclamos', reportes:'Reportes'
+    };
+    document.getElementById('page-title').textContent = titles[page] || 'Panel';
+  }
+</script>
+</body>
+</html>
