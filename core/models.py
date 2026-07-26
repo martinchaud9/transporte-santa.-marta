@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 class Usuario(AbstractUser):
     ROL_CHOICES = [
@@ -30,6 +31,12 @@ class Envio(models.Model):
         ('domicilio', 'Entrega a domicilio'),
         ('sucursal', 'Retiro en sucursal'),
     ]
+    ZONA_CHOICES = [
+        ('norte', 'Norte'),
+        ('sur', 'Sur'),
+        ('este', 'Este'),
+        ('oeste', 'Oeste'),
+    ]
 
     codigo = models.CharField(max_length=20, unique=True, editable=False)
     destinatario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='envios')
@@ -38,11 +45,35 @@ class Envio(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     modalidad = models.CharField(max_length=20, choices=MODALIDAD_CHOICES)
     direccion_entrega = models.CharField(max_length=200, blank=True)
+    zona = models.CharField(max_length=10, choices=ZONA_CHOICES, blank=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fecha_recepcion = models.DateTimeField(null=True, blank=True)
+    lat = models.FloatField(null=True, blank=True)
+    lon = models.FloatField(null=True, blank=True)
+    notificado_demora = models.BooleanField(default=False)
+
+    ESTADOS_ACTIVOS = ['pendiente', 'en_transito', 'en_sucursal', 'en_reparto']
+    UMBRAL_DEMORA_DIAS = 2
 
     def __str__(self):
         return self.codigo
+
+    @property
+    def dias_sin_actualizar(self):
+        return (timezone.now() - self.fecha_actualizacion).days
+
+    @property
+    def esta_demorado(self):
+        return self.estado in self.ESTADOS_ACTIVOS and self.dias_sin_actualizar > self.UMBRAL_DEMORA_DIAS
+
+    @property
+    def monto_pagado(self):
+        return self.pagos.filter(anulado=False).aggregate(total=models.Sum('monto'))['total'] or 0
+
+    @property
+    def esta_pagado(self):
+        return self.monto_pagado >= self.precio
 
 
 class Pago(models.Model):
@@ -58,6 +89,7 @@ class Pago(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     es_parcial = models.BooleanField(default=False)
     justificacion = models.TextField(blank=True)
+    anulado = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Pago {self.envio.codigo} — ${self.monto}"
@@ -104,3 +136,21 @@ class Reclamo(models.Model):
 
     def __str__(self):
         return f"Reclamo #{self.id} — {self.envio.codigo}"
+
+
+class Vehiculo(models.Model):
+    TIPO_CHOICES = [
+        ('moto', 'Moto'),
+        ('auto', 'Auto'),
+        ('camioneta', 'Camioneta'),
+        ('furgon', 'Furgón'),
+    ]
+
+    patente = models.CharField(max_length=10, unique=True)
+    marca = models.CharField(max_length=50, blank=True)
+    modelo = models.CharField(max_length=50, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    empleado = models.OneToOneField(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='vehiculo')
+
+    def __str__(self):
+        return self.patente

@@ -5,4 +5,5 @@ urlpatterns = [
     path('', views.dashboard_view, name='casacentral_dashboard'),
     path('envios/nuevo/', views.nuevo_envio_view, name='casacentral_nuevo_envio'),
     path('despachar/', views.despachar_camion_view, name='casacentral_despachar'),
+    path('qr/<str:codigo>/', views.qr_envio_view, name='casacentral_qr_envio'),
 ]

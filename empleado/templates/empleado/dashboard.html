@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Panel Empleado — Santa Marta</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -86,6 +87,11 @@
     .modal { background: white; border-radius: 16px; padding: 28px; width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
     .modal-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 20px; }
     .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+    .modal-scan { width: 380px; }
+    #scan-reader { width: 100%; border-radius: 10px; overflow: hidden; }
+    .scan-status { margin-top: 12px; font-size: .82rem; color: var(--gray); min-height: 1.2em; }
+    .scan-fallback { font-size: .8rem; color: var(--blue); text-decoration: none; align-self: center; }
+    .scan-fallback:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -110,6 +116,9 @@
   </a>
   <a href="#" class="nav-item" onclick="showPage('incidencias')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>Registrar incidencia
+  </a>
+  <a href="{% url 'empleado_preparar_reparto' %}" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Preparar reparto
   </a>
 
   <div class="sidebar-footer">
@@ -169,7 +178,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span></td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}">
                   {% csrf_token %}
@@ -177,11 +186,11 @@
                   <input type="hidden" name="estado" value="en_reparto"/>
                   <button type="submit" class="btn btn-orange" style="padding:5px 10px;font-size:.75rem;">En reparto</button>
                 </form>
-                <form method="POST" action="{% url 'empleado_estado' %}">
+                <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-dash-suc-{{ envio.id }}">
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
+                  <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-suc-{{ envio.id }}')">Entregado</button>
                 </form>
                 <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
               </td>
@@ -192,13 +201,13 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span></td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
-                <form method="POST" action="{% url 'empleado_estado' %}">
+                <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-dash-rep-{{ envio.id }}">
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
+                  <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-rep-{{ envio.id }}')">Entregado</button>
                 </form>
                 <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
               </td>
@@ -217,13 +226,14 @@
       <div class="section-header"><div class="section-title">Recepcionar Paquetes</div></div>
       <div class="form-card" style="margin-bottom:24px;">
         <div style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:16px;">Ingresar código de paquete</div>
-        <form method="POST" action="{% url 'empleado_recepcionar' %}">
+        <form method="POST" action="{% url 'empleado_recepcionar' %}" id="form-recepcionar">
           {% csrf_token %}
           <div style="display:flex;gap:12px;align-items:flex-end;">
             <div class="field" style="flex:1;margin-bottom:0;">
               <label>Código de envío *</label>
-              <input type="text" name="codigo" placeholder="Ej: ENV-A1B2C3" required/>
+              <input type="text" name="codigo" id="input-codigo-recepcion" placeholder="Ej: ENV-A1B2C3" required/>
             </div>
+            <button type="button" class="btn btn-outline" onclick="abrirScanRecepcion()">📷 Escanear con cámara</button>
             <button type="submit" class="btn btn-primary">Recepcionar</button>
           </div>
         </form>
@@ -239,7 +249,7 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-transit">En tránsito</span></td>
+              <td><span class="badge badge-transit">En tránsito</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
             </tr>
             {% empty %}
             <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay paquetes en tránsito</td></tr>
@@ -262,13 +272,13 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span></td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
               <td>
-                <form method="POST" action="{% url 'empleado_estado' %}">
+                <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-suc-{{ envio.id }}">
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
+                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-pend-suc-{{ envio.id }}')">Marcar entregado</button>
                 </form>
               </td>
             </tr>
@@ -279,13 +289,13 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span></td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
               <td>
-                <form method="POST" action="{% url 'empleado_estado' %}">
+                <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-rep-{{ envio.id }}">
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
+                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-pend-rep-{{ envio.id }}')">Marcar entregado</button>
                 </form>
               </td>
             </tr>
@@ -339,6 +349,93 @@
       </div>
     </div>
 
+    <!-- PREPARAR REPARTO -->
+    <div id="page-reparto" style="display:none;">
+      <div class="section-header"><div class="section-title">Preparar Reparto por Zona</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:20px;">
+        El sistema geocodifica automáticamente la dirección de cada envío a domicilio pendiente y lo agrupa por zona. Solo hace falta confirmar la salida de cada zona.
+      </p>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:24px;">
+        {% for clave, etiqueta, envios_zona in reparto_zonas %}
+        <div class="table-card">
+          <div class="table-card-header">
+            <div class="table-card-title">Zona {{ etiqueta }}</div>
+            <span class="badge badge-sucursal">{{ envios_zona|length }}</span>
+          </div>
+          <table>
+            <thead><tr><th style="width:44px;">Orden</th><th>Código</th><th>Destinatario</th><th>Dirección</th></tr></thead>
+            <tbody>
+              {% for envio in envios_zona %}
+              <tr>
+                <td><span class="badge badge-sucursal">{{ forloop.counter }}</span></td>
+                <td><strong>{{ envio.codigo }}</strong></td>
+                <td>{{ envio.destinatario.get_full_name }}</td>
+                <td style="color:var(--gray);font-size:.8rem;">{{ envio.direccion_entrega }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:16px;">Sin envíos en esta zona</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if envios_zona %}
+          <div style="padding:14px 20px;border-top:1px solid var(--gray-light);">
+            <form method="POST" action="{% url 'empleado_despachar_zona' %}">
+              {% csrf_token %}
+              <input type="hidden" name="zona" value="{{ clave }}"/>
+              <button type="submit" class="btn btn-green">Salir a reparto — Zona {{ etiqueta }}</button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="section-header"><div class="section-title">Sin zona asignada</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Dirección</th><th>Asignar zona</th></tr></thead>
+          <tbody>
+            {% for envio in reparto_sin_zona %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td style="color:var(--gray);font-size:.8rem;">{{ envio.direccion_entrega }}</td>
+              <td>
+                <form method="POST" action="{% url 'empleado_asignar_zona' %}" style="display:flex;gap:8px;align-items:center;">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <select name="zona" required style="padding:6px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:'Barlow',sans-serif;font-size:.82rem;">
+                    <option value="">Zona...</option>
+                    {% for clave, etiqueta in zona_choices %}
+                    <option value="{{ clave }}">{{ etiqueta }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 12px;font-size:.78rem;">Asignar</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:20px;">No se pudo geocodificar la dirección de ningún envío pendiente — o no hay envíos a domicilio esperando reparto</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL ESCANEO QR (recepción y entrega) -->
+<div class="modal-overlay" id="modal-scan">
+  <div class="modal modal-scan">
+    <div class="modal-title" id="scan-modal-title">Escanear código</div>
+    <div id="scan-reader"></div>
+    <div class="scan-status" id="scan-status"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <a href="#" class="scan-fallback" onclick="confirmarManual(); return false;">No puedo escanear, confirmar manualmente</a>
+      <button type="button" class="btn btn-outline" onclick="cerrarScan()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -384,10 +481,15 @@
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const titles = {
       dashboard: 'Dashboard', recepcionar: 'Recepcionar Paquetes',
-      pendientes: 'Envíos Pendientes', incidencias: 'Registrar Incidencia'
+      pendientes: 'Envíos Pendientes', incidencias: 'Registrar Incidencia',
+      reparto: 'Preparar Reparto'
     };
     document.getElementById('page-title').textContent = titles[page] || 'Panel';
   }
+
+  {% if mostrar_reparto %}
+  showPage('reparto');
+  {% endif %}
 
   function abrirIncidencia(id, codigo) {
     document.getElementById('modal-envio-id').value = id;
@@ -397,6 +499,89 @@
 
   function cerrarModal() {
     document.getElementById('modal-incidencia').classList.remove('open');
+  }
+
+  // --- Escaneo QR (recepción y entrega) ---
+  let html5QrCode = null;
+  let scanMode = null;          // 'recepcion' | 'entrega'
+  let scanCodigoEsperado = null;
+  let scanFormId = null;
+
+  function abrirScanRecepcion() {
+    scanMode = 'recepcion';
+    scanCodigoEsperado = null;
+    scanFormId = null;
+    document.getElementById('scan-modal-title').textContent = 'Escanear paquete a recepcionar';
+    document.getElementById('scan-status').textContent = '';
+    document.getElementById('modal-scan').classList.add('open');
+    iniciarCamara();
+  }
+
+  function abrirScanEntrega(codigo, formId) {
+    scanMode = 'entrega';
+    scanCodigoEsperado = codigo;
+    scanFormId = formId;
+    document.getElementById('scan-modal-title').textContent = 'Escanear para confirmar entrega: ' + codigo;
+    document.getElementById('scan-status').textContent = '';
+    document.getElementById('modal-scan').classList.add('open');
+    iniciarCamara();
+  }
+
+  function iniciarCamara() {
+    html5QrCode = new Html5Qrcode('scan-reader');
+    html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 220, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+      onScanExitoso,
+      () => {}
+    ).catch(() => {
+      document.getElementById('scan-status').textContent = 'No se pudo acceder a la cámara. Usá la confirmación manual.';
+    });
+  }
+
+  function onScanExitoso(decodedText) {
+    const codigo = decodedText.trim();
+    if (scanMode === 'recepcion') {
+      detenerCamara();
+      document.getElementById('input-codigo-recepcion').value = codigo;
+      cerrarScan();
+      document.getElementById('form-recepcionar').submit();
+    } else if (scanMode === 'entrega') {
+      if (codigo === scanCodigoEsperado) {
+        detenerCamara();
+        cerrarScan();
+        const form = document.getElementById(scanFormId);
+        if (form) form.submit();
+      } else {
+        document.getElementById('scan-status').textContent = 'El código escaneado no corresponde a este paquete. Probá de nuevo.';
+      }
+    }
+  }
+
+  function detenerCamara() {
+    if (html5QrCode) {
+      const instancia = html5QrCode;
+      html5QrCode = null;
+      try {
+        instancia.stop().then(() => instancia.clear()).catch(() => {});
+      } catch (e) {
+        // La cámara nunca llegó a iniciarse (permiso denegado, sin cámara, etc.)
+      }
+    }
+  }
+
+  function cerrarScan() {
+    detenerCamara();
+    document.getElementById('modal-scan').classList.remove('open');
+  }
+
+  function confirmarManual() {
+    detenerCamara();
+    cerrarScan();
+    if (scanMode === 'entrega' && scanFormId) {
+      const form = document.getElementById(scanFormId);
+      if (form) form.submit();
+    }
   }
 </script>
 </body>

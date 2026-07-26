@@ -84,6 +84,16 @@
     .despachar-info { display: flex; flex-direction: column; gap: 4px; }
     .despachar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: #15803d; }
     .despachar-sub { font-size: .82rem; color: #16a34a; }
+    .badge-recibido { background: #dcfce7; color: #16a34a; }
+    .btn-etiqueta { padding: 5px 10px; font-size: .75rem; background: white; color: var(--red); border: 1.5px solid var(--gray-light); }
+    .btn-etiqueta:hover { background: var(--off-white); border-color: var(--red-light); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 28px; width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,.2); text-align: center; }
+    .modal-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--red-dark); margin-bottom: 16px; }
+    .modal img { width: 100%; max-width: 260px; border: 1.5px solid var(--gray-light); border-radius: 10px; padding: 10px; }
+    .modal-codigo { margin-top: 14px; font-size: .95rem; font-weight: 700; color: var(--text); letter-spacing: .04em; }
+    .modal-actions { margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -108,6 +118,9 @@
   </a>
   <a href="#" class="nav-item" onclick="showPage('entregados')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Entregados
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('manifiesto')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>Manifiesto de recepción
   </a>
 
   <div class="sidebar-footer">
@@ -178,7 +191,7 @@
       </div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Etiqueta</th></tr></thead>
           <tbody>
             {% for envio in envios_pendientes %}
             <tr>
@@ -187,9 +200,10 @@
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
               <td><span class="badge badge-pendiente">Pendiente</span></td>
+              <td><button class="btn btn-etiqueta" onclick="verEtiqueta('{{ envio.codigo }}')">Ver QR</button></td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -210,6 +224,7 @@
             <div class="field"><label>Nombre del destinatario *</label><input type="text" name="destinatario_nombre" placeholder="Juan Pérez" required/></div>
             <div class="field"><label>DNI / CUIT *</label><input type="text" name="destinatario_dni" placeholder="20-12345678-9" required/></div>
             <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" placeholder="+54 385 000 0000" required/></div>
+            <div class="field"><label>Email del destinatario</label><input type="email" name="email" placeholder="destinatario@correo.com"/></div>
             <div class="field"><label>Contenido del paquete *</label><input type="text" name="contenido" placeholder="Ej: Ropa, electrónica..." required/></div>
             <div class="field"><label>Precio del servicio *</label><input type="number" name="precio" placeholder="0.00" step="0.01" required/></div>
             <div class="field">
@@ -245,7 +260,7 @@
       <div class="section-header"><div class="section-title">Envíos en tránsito</div></div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Etiqueta</th></tr></thead>
           <tbody>
             {% for envio in envios_transito %}
             <tr>
@@ -254,9 +269,35 @@
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
               <td><span class="badge badge-transito">En tránsito</span></td>
+              <td><button class="btn btn-etiqueta" onclick="verEtiqueta('{{ envio.codigo }}')">Ver QR</button></td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos en tránsito</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos en tránsito</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MANIFIESTO DE RECEPCIÓN -->
+    <div id="page-manifiesto" style="display:none;">
+      <div class="section-header"><div class="section-title">Manifiesto de Recepción — Santiago del Estero</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:16px;">
+        Confirmaciones generadas automáticamente por el sistema apenas la sucursal escanea cada paquete que baja del camión. No requiere carga manual.
+      </p>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Recibido en sucursal</th></tr></thead>
+          <tbody>
+            {% for envio in envios_recibidos %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-recibido">{{ envio.fecha_recepcion|date:"d/m/Y H:i" }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:20px;">Todavía no hay confirmaciones de recepción</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -289,6 +330,18 @@
   </div>
 </div>
 
+<!-- MODAL ETIQUETA QR -->
+<div class="modal-overlay" id="modal-etiqueta">
+  <div class="modal">
+    <div class="modal-title">Etiqueta del paquete</div>
+    <img id="modal-etiqueta-img" src="" alt="Código QR del envío"/>
+    <div class="modal-codigo" id="modal-etiqueta-codigo"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="cerrarEtiqueta()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const d = new Date();
   document.getElementById('topbar-date').textContent =
@@ -301,7 +354,8 @@
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const titles = {
       dashboard: 'Dashboard', 'nuevo-envio': 'Nuevo Envío',
-      'en-transito': 'En Tránsito', entregados: 'Envíos Entregados'
+      'en-transito': 'En Tránsito', entregados: 'Envíos Entregados',
+      manifiesto: 'Manifiesto de Recepción'
     };
     document.getElementById('topbar-title').textContent = titles[page] || 'Panel';
   }
@@ -309,6 +363,16 @@
   function toggleDireccion(sel) {
     const field = document.getElementById('dir-field');
     field.classList.toggle('visible', sel.value === 'domicilio');
+  }
+
+  function verEtiqueta(codigo) {
+    document.getElementById('modal-etiqueta-img').src = '/casacentral/qr/' + codigo + '/';
+    document.getElementById('modal-etiqueta-codigo').textContent = codigo;
+    document.getElementById('modal-etiqueta').classList.add('open');
+  }
+
+  function cerrarEtiqueta() {
+    document.getElementById('modal-etiqueta').classList.remove('open');
   }
 </script>
 </body>

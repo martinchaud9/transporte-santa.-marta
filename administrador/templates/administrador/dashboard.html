@@ -1,3 +1,4 @@
+{% load l10n %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -138,6 +139,9 @@
   <a href="#" class="nav-item" onclick="showPage('empleados')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Empleados
   </a>
+  <a href="#" class="nav-item" onclick="showPage('vehiculos')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>Vehículos
+  </a>
   <a href="#" class="nav-item" onclick="showPage('reclamos')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>Reclamos
   </a>
@@ -184,23 +188,23 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Envíos hoy</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
-          <div class="stat-card-num">38</div>
-          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 12%</span><span class="stat-card-sub">vs. ayer</span></div>
+          <div class="stat-card-num">{{ envios_hoy }}</div>
+          <div class="stat-card-sub">Registrados hoy</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Entregas hoy</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
-          <div class="stat-card-num">24</div>
-          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 8%</span><span class="stat-card-sub">vs. ayer</span></div>
+          <div class="stat-card-num">{{ entregas_hoy }}</div>
+          <div class="stat-card-sub">Completadas hoy</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Pendientes</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
-          <div class="stat-card-num">14</div>
-          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge down">↓ 3%</span><span class="stat-card-sub">vs. ayer</span></div>
+          <div class="stat-card-num">{{ pendientes_total }}</div>
+          <div class="stat-card-sub">Sin entregar todavía</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Pagos registrados</span><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div></div>
-          <div class="stat-card-num">$18.4k</div>
-          <div style="display:flex;align-items:center;gap:8px;"><span class="stat-badge up">↑ 5%</span><span class="stat-card-sub">esta semana</span></div>
+          <div class="stat-card-num">${{ pagos_semana }}</div>
+          <div class="stat-card-sub">Esta semana</div>
         </div>
       </div>
       <div class="two-col">
@@ -215,13 +219,25 @@
               <div class="search-box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input type="text" placeholder="Buscar código..."/></div>
             </div>
             <table>
-              <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
+              <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Estado</th></tr></thead>
               <tbody>
-                <tr><td><strong>ENV-0041</strong></td><td>García, Luis</td><td>Domicilio</td><td><span class="badge badge-reparto">En reparto</span></td><td><button class="action-btn">Ver</button></td></tr>
-                <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>Sucursal</td><td><span class="badge badge-sucursal">En sucursal</span></td><td><button class="action-btn">Ver</button></td></tr>
-                <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>Domicilio</td><td><span class="badge badge-entregado">Entregado</span></td><td><button class="action-btn">Ver</button></td></tr>
-                <tr><td><strong>ENV-0038</strong></td><td>Romero, Julia</td><td>Sucursal</td><td><span class="badge badge-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
-                <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>Domicilio</td><td><span class="badge badge-pendiente">Pendiente</span></td><td><button class="action-btn">Ver</button></td></tr>
+                {% for envio in envios_recientes %}
+                <tr>
+                  <td><strong>{{ envio.codigo }}</strong></td>
+                  <td>{{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</td>
+                  <td>{{ envio.get_modalidad_display }}</td>
+                  <td>
+                    <span class="badge
+                      {% if envio.estado == 'en_reparto' %}badge-reparto
+                      {% elif envio.estado == 'en_sucursal' %}badge-sucursal
+                      {% elif envio.estado == 'entregado' %}badge-entregado
+                      {% elif envio.estado == 'en_transito' %}badge-transit
+                      {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos registrados todavía</td></tr>
+                {% endfor %}
               </tbody>
             </table>
           </div>
@@ -230,17 +246,27 @@
           <div class="panel-card">
             <div class="panel-card-header">Actividad reciente</div>
             <div class="panel-card-body">
-              <div class="activity-item"><div class="activity-dot dot-green"></div><div><div class="activity-text"><strong>ENV-0039</strong> marcado como Entregado</div><div class="activity-time">Hace 12 min</div></div></div>
-              <div class="activity-item"><div class="activity-dot dot-blue"></div><div><div class="activity-text">Pago registrado para <strong>ENV-0040</strong></div><div class="activity-time">Hace 34 min</div></div></div>
-              <div class="activity-item"><div class="activity-dot dot-orange"></div><div><div class="activity-text">Incidencia en <strong>ENV-0036</strong>: paquete dañado</div><div class="activity-time">Hace 1 hora</div></div></div>
-              <div class="activity-item"><div class="activity-dot dot-blue"></div><div><div class="activity-text">Camión recepcionado — <strong>18 paquetes</strong></div><div class="activity-time">Hace 2 horas</div></div></div>
+              {% for evento in actividad_reciente %}
+              <div class="activity-item"><div class="activity-dot {{ evento.color }}"></div><div><div class="activity-text">{{ evento.texto }}</div><div class="activity-time">Hace {{ evento.fecha|timesince }}</div></div></div>
+              {% empty %}
+              <div class="activity-text" style="color:var(--gray);">Todavía no hay actividad registrada</div>
+              {% endfor %}
             </div>
           </div>
           <div class="panel-card">
             <div class="panel-card-header">Reclamos pendientes</div>
             <div class="panel-card-body">
-              <div class="reclamo-item"><div class="reclamo-top"><span class="reclamo-codigo">ENV-0035</span><span class="badge badge-reclamo">Nuevo</span></div><div class="reclamo-desc">Paquete no recibido — cliente reclama demora</div></div>
-              <div class="reclamo-item"><div class="reclamo-top"><span class="reclamo-codigo">ENV-0031</span><span class="badge badge-proceso">En proceso</span></div><div class="reclamo-desc">Dirección incorrecta — requiere reentrega</div></div>
+              {% for reclamo in reclamos_pendientes %}
+              <div class="reclamo-item">
+                <div class="reclamo-top">
+                  <span class="reclamo-codigo">{{ reclamo.envio.codigo }}</span>
+                  <span class="badge {% if reclamo.estado == 'nuevo' %}badge-reclamo{% else %}badge-proceso{% endif %}">{{ reclamo.get_estado_display }}</span>
+                </div>
+                <div class="reclamo-desc">{{ reclamo.descripcion|truncatechars:60 }}</div>
+              </div>
+              {% empty %}
+              <div class="reclamo-desc" style="color:var(--gray);">No hay reclamos pendientes</div>
+              {% endfor %}
             </div>
           </div>
         </div>
@@ -257,11 +283,19 @@
       </div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Nombre</th><th>DNI</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>DNI</th><th>Correo</th><th>Teléfono</th><th>Estado</th></tr></thead>
           <tbody>
-            <tr><td><strong>Rodríguez, María</strong></td><td>28.456.789</td><td>maria@santamarta.com</td><td>Empleado</td><td><span class="badge badge-sucursal">Activo</span></td><td><button class="action-btn">Editar</button></td></tr>
-            <tr><td><strong>Fernández, Jorge</strong></td><td>31.234.567</td><td>jorge@santamarta.com</td><td>Empleado</td><td><span class="badge badge-sucursal">Activo</span></td><td><button class="action-btn">Editar</button></td></tr>
-            <tr><td><strong>Suárez, Lucía</strong></td><td>35.678.901</td><td>lucia@santamarta.com</td><td>Empleado</td><td><span class="badge badge-pendiente">Inactivo</span></td><td><button class="action-btn">Editar</button></td></tr>
+            {% for empleado in empleados %}
+            <tr>
+              <td><strong>{{ empleado.get_full_name|default:empleado.username }}</strong></td>
+              <td>{{ empleado.dni }}</td>
+              <td>{{ empleado.email|default:"—" }}</td>
+              <td>{{ empleado.telefono|default:"—" }}</td>
+              <td><span class="badge {% if empleado.is_active %}badge-sucursal{% else %}badge-pendiente{% endif %}">{% if empleado.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay empleados registrados</td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
@@ -288,6 +322,79 @@
           <div style="display:flex;gap:12px;justify-content:flex-end;">
             <button type="button" class="btn btn-outline" onclick="showPage('empleados')">Cancelar</button>
             <button type="submit" class="btn btn-primary">Guardar empleado</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- VEHICULOS -->
+    <div id="page-vehiculos" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Gestión de Vehículos</div>
+        <button class="btn btn-primary" onclick="showPage('nuevo-vehiculo')">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Nuevo vehículo
+        </button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Patente</th><th>Marca / Modelo</th><th>Tipo</th><th>Empleado asignado</th></tr></thead>
+          <tbody>
+            {% for vehiculo in vehiculos %}
+            <tr>
+              <td><strong>{{ vehiculo.patente }}</strong></td>
+              <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
+              <td>{{ vehiculo.get_tipo_display }}</td>
+              <td>
+                {% if vehiculo.empleado %}
+                {{ vehiculo.empleado.get_full_name|default:vehiculo.empleado.username }}
+                {% else %}
+                <span class="badge badge-pendiente">Sin asignar</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:20px;">No hay vehículos registrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NUEVO VEHICULO -->
+    <div id="page-nuevo-vehiculo" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Registrar Nuevo Vehículo</div>
+        <button class="btn btn-outline" onclick="showPage('vehiculos')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        <form method="POST" action="{% url 'registro_vehiculo' %}">
+          {% csrf_token %}
+          <div class="field-group">
+            <div class="field"><label>Patente *</label><input type="text" name="patente" placeholder="Ej: AB123CD"/></div>
+            <div class="field">
+              <label>Tipo de vehículo *</label>
+              <select name="tipo">
+                <option value="moto">Moto</option>
+                <option value="auto">Auto</option>
+                <option value="camioneta">Camioneta</option>
+                <option value="furgon">Furgón</option>
+              </select>
+            </div>
+            <div class="field"><label>Marca</label><input type="text" name="marca" placeholder="Ej: Renault"/></div>
+            <div class="field"><label>Modelo</label><input type="text" name="modelo" placeholder="Ej: Kangoo"/></div>
+            <div class="field">
+              <label>Empleado asignado</label>
+              <select name="empleado">
+                <option value="">Sin asignar</option>
+                {% for empleado in empleados %}
+                <option value="{{ empleado.id }}">{{ empleado.get_full_name|default:empleado.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('vehiculos')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar vehículo</button>
           </div>
         </form>
       </div>
@@ -354,33 +461,204 @@
     <!-- REPORTES -->
     <div id="page-reportes" style="display:none;">
       <div class="section-header"><div class="section-title">Reportes</div></div>
-      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:500px;">
-        <div class="field" style="margin-bottom:16px;">
-          <label>Tipo de reporte</label>
-          <select><option>Semanal</option><option>Mensual</option></select>
-        </div>
-        <div class="field" style="margin-bottom:24px;">
-          <label>Período</label>
-          <input type="month"/>
-        </div>
-        <button class="btn btn-primary" onclick="alert('Reporte generado correctamente.')">Generar reporte</button>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:500px;margin-bottom:24px;">
+        <form method="GET" action="{% url 'generar_reporte' %}">
+          <div class="field" style="margin-bottom:16px;">
+            <label>Tipo de reporte</label>
+            <select name="tipo" onchange="togglePeriodo(this)">
+              <option value="semanal" {% if reporte.tipo == 'semanal' or not reporte %}selected{% endif %}>Semanal (últimos 7 días)</option>
+              <option value="mensual" {% if reporte.tipo == 'mensual' %}selected{% endif %}>Mensual</option>
+            </select>
+          </div>
+          <div class="field-group periodo-field" id="periodo-field" style="margin-bottom:24px;grid-template-columns:1fr 1fr;{% if reporte.tipo != 'mensual' %}display:none;{% endif %}">
+            <div class="field">
+              <label>Mes</label>
+              <select name="mes">
+                {% for valor, nombre in meses %}
+                <option value="{{ valor }}" {% if reporte.mes == valor %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Año</label>
+              <select name="anio">
+                {% for valor in anios_disponibles %}
+                <option value="{{ valor }}" {% if reporte.anio == valor %}selected{% endif %}>{{ valor }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Generar reporte</button>
+        </form>
       </div>
+
+      {% if reporte %}
+      <div class="section-header"><div class="section-title">Resultado — {% if reporte.tipo == 'mensual' %}{{ reporte.mes_nombre }} {{ reporte.anio }}{% else %}Últimos 7 días{% endif %}</div></div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Envíos registrados</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
+          <div class="stat-card-num">{{ reporte.envios_registrados }}</div>
+          <div class="stat-card-sub">En el período elegido</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Envíos entregados</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
+          <div class="stat-card-num">{{ reporte.envios_entregados }}</div>
+          <div class="stat-card-sub">En el período elegido</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Incidencias</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">{{ reporte.incidencias }}</div>
+          <div class="stat-card-sub">Registradas en el período</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Demorados ahora</span><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">{{ reporte.demorados_actuales }}</div>
+          <div class="stat-card-sub">Más de 2 días sin actualizar</div>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- PAGOS -->
     <div id="page-pagos" style="display:none;">
-      <div class="section-header"><div class="section-title">Pagos</div></div>
+      <div class="section-header">
+        <div class="section-title">Pagos</div>
+        <button class="btn btn-primary" onclick="showPage('nuevo-pago')">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Nuevo pago
+        </button>
+      </div>
+      <div class="table-card" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Envío</th><th>Cliente</th><th>Monto</th><th>Medio</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            {% for pago in pagos %}
+            <tr>
+              <td><strong>{{ pago.envio.codigo }}</strong></td>
+              <td>{{ pago.envio.destinatario.get_full_name|default:pago.envio.destinatario.username }}</td>
+              <td>${{ pago.monto }}</td>
+              <td>{{ pago.get_medio_pago_display }}</td>
+              <td>{{ pago.fecha|date:"d/m/Y" }}</td>
+              <td>
+                {% if pago.anulado %}<span class="badge badge-pendiente">Anulado</span>
+                {% elif pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>
+                {% else %}<span class="badge badge-sucursal">Pagado</span>{% endif %}
+              </td>
+              <td style="display:flex;gap:8px;">
+                <a href="{% url 'editar_pago' pago.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Editar</a>
+                {% if not pago.anulado and pago.envio.estado != 'entregado' %}
+                <form method="POST" action="{% url 'anular_pago' pago.id %}" onsubmit="return confirm('¿Anular este pago?');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn">Anular</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align:center;color:var(--gray);padding:20px;">No hay pagos registrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-header"><div class="section-title">Envíos sin pago registrado</div></div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Envío</th><th>Cliente</th><th>Monto</th><th>Medio</th><th>Fecha</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Código</th><th>Cliente</th><th>Precio</th></tr></thead>
           <tbody>
-            <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>$2.500</td><td>Efectivo</td><td>05/06/2026</td><td><span class="badge badge-sucursal">Pagado</span></td></tr>
-            <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>$1.800</td><td>Transferencia</td><td>05/06/2026</td><td><span class="badge badge-sucursal">Pagado</span></td></tr>
-            <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>$3.200</td><td>—</td><td>—</td><td><span class="badge badge-pendiente">Pendiente</span></td></tr>
+            {% for envio in envios_sin_pago %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</td>
+              <td>${{ envio.precio }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" style="text-align:center;color:var(--gray);padding:20px;">Todos los envíos tienen al menos un pago registrado</td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- NUEVO PAGO -->
+    <div id="page-nuevo-pago" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Registrar Nuevo Pago</div>
+        <button class="btn btn-outline" onclick="showPage('pagos')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        <form method="POST" action="{% url 'registrar_pago' %}">
+          {% csrf_token %}
+          <div class="field-group">
+            <div class="field">
+              <label>Envío *</label>
+              <select name="envio" required>
+                <option value="">Seleccionar envío...</option>
+                {% for envio in todos_los_envios %}
+                <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field"><label>Monto *</label><input type="number" step="0.01" name="monto" placeholder="0.00" required/></div>
+            <div class="field">
+              <label>Medio de pago *</label>
+              <select name="medio_pago">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia bancaria</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><input type="checkbox" name="es_parcial" value="on" onchange="togglePagoParcial(this, 'justificacion-nuevo')" style="width:auto;display:inline-block;margin-right:8px;"/>Es un pago parcial</label>
+            </div>
+            <div class="field" id="justificacion-nuevo" style="display:none;">
+              <label>Justificación *</label>
+              <textarea name="justificacion" placeholder="Motivo del pago parcial (solo para clientes con más de 3 envíos pagados)"></textarea>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('pagos')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar pago</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if pago_editar %}
+    <!-- EDITAR PAGO -->
+    <div id="page-editar-pago-{{ pago_editar.id }}" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Editar Pago — {{ pago_editar.envio.codigo }}</div>
+        <button class="btn btn-outline" onclick="showPage('pagos')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        <form method="POST" action="{% url 'editar_pago' pago_editar.id %}">
+          {% csrf_token %}
+          <div class="field-group">
+            <div class="field"><label>Envío</label><input type="text" value="{{ pago_editar.envio.codigo }}" disabled/></div>
+            <div class="field"><label>Monto *</label><input type="number" step="0.01" name="monto" value="{{ pago_editar.monto|unlocalize }}" required/></div>
+            <div class="field">
+              <label>Medio de pago *</label>
+              <select name="medio_pago">
+                <option value="efectivo" {% if pago_editar.medio_pago == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                <option value="transferencia" {% if pago_editar.medio_pago == 'transferencia' %}selected{% endif %}>Transferencia bancaria</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><input type="checkbox" name="es_parcial" value="on" {% if pago_editar.es_parcial %}checked{% endif %} onchange="togglePagoParcial(this, 'justificacion-editar-{{ pago_editar.id }}')" style="width:auto;display:inline-block;margin-right:8px;"/>Es un pago parcial</label>
+            </div>
+            <div class="field" id="justificacion-editar-{{ pago_editar.id }}" style="{% if not pago_editar.es_parcial %}display:none;{% endif %}">
+              <label>Justificación *</label>
+              <textarea name="justificacion" placeholder="Motivo del pago parcial">{{ pago_editar.justificacion }}</textarea>
+            </div>
+          </div>
+          <input type="hidden" name="envio" value="{{ pago_editar.envio.id }}"/>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('pagos')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
   </div>
 </div>
@@ -398,10 +676,27 @@
     const titles = {
       dashboard:'Dashboard', envios:'Gestión de Envíos', clientes:'Clientes',
       pagos:'Pagos', empleados:'Empleados', 'nuevo-empleado':'Registrar Empleado',
-      reclamos:'Reclamos', reportes:'Reportes'
+      vehiculos:'Vehículos', 'nuevo-vehiculo':'Registrar Vehículo',
+      reclamos:'Reclamos', reportes:'Reportes', 'nuevo-pago':'Registrar Pago'
     };
-    document.getElementById('page-title').textContent = titles[page] || 'Panel';
+    const titulo = page.startsWith('editar-pago-') ? 'Editar Pago' : (titles[page] || 'Panel');
+    document.getElementById('page-title').textContent = titulo;
   }
+
+  function togglePeriodo(select) {
+    document.getElementById('periodo-field').style.display = select.value === 'mensual' ? 'block' : 'none';
+  }
+
+  function togglePagoParcial(checkbox, idJustificacion) {
+    document.getElementById(idJustificacion).style.display = checkbox.checked ? 'block' : 'none';
+  }
+
+  {% if mostrar_reportes %}
+  showPage('reportes');
+  {% endif %}
+  {% if mostrar_editar_pago %}
+  showPage('editar-pago-{{ pago_editar.id }}');
+  {% endif %}
 </script>
 </body>
 </html>
