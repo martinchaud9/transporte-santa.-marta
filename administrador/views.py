@@ -4,8 +4,8 @@ from django.db.models import Sum
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo
-from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, PagoForm
+from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho
+from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, EditarVehiculoForm
 
 MESES = [
     (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
@@ -26,6 +26,9 @@ def _contexto_dashboard():
         'pagos': Pago.objects.select_related('envio', 'envio__destinatario').order_by('-fecha'),
         'envios_sin_pago': Envio.objects.filter(pagos__isnull=True).select_related('destinatario'),
         'todos_los_envios': Envio.objects.select_related('destinatario').order_by('-fecha_registro'),
+        'despachos': Despacho.objects.prefetch_related('envios__destinatario').order_by('-fecha_salida'),
+        'incidencias': Incidencia.objects.select_related('envio', 'envio__destinatario', 'registrado_por').order_by('-fecha'),
+        'reclamos': Reclamo.objects.select_related('envio', 'cliente').order_by('-fecha_creacion'),
     }
 
 @login_required
@@ -125,31 +128,16 @@ def generar_reporte_view(request):
     return render(request, 'administrador/dashboard.html', contexto)
 
 @login_required
-def registrar_pago_view(request):
-    if request.user.rol != 'admin':
-        return redirect('inicio')
-    if request.method == 'POST':
-        form = PagoForm(request.POST)
-        if form.is_valid():
-            pago = form.save(commit=False)
-            pago.registrado_por = request.user
-            pago.save()
-            return redirect('admin_dashboard')
-        else:
-            print(form.errors)
-    return redirect('admin_dashboard')
-
-@login_required
-def editar_pago_view(request, pago_id):
+def editar_vehiculo_view(request, vehiculo_id):
     if request.user.rol != 'admin':
         return redirect('inicio')
     try:
-        pago = Pago.objects.get(id=pago_id)
-    except Pago.DoesNotExist:
+        vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+    except Vehiculo.DoesNotExist:
         return redirect('admin_dashboard')
 
     if request.method == 'POST':
-        form = PagoForm(request.POST, instance=pago)
+        form = EditarVehiculoForm(request.POST, instance=vehiculo)
         if form.is_valid():
             form.save()
             return redirect('admin_dashboard')
@@ -158,8 +146,64 @@ def editar_pago_view(request, pago_id):
             return redirect('admin_dashboard')
 
     contexto = _contexto_dashboard()
-    contexto.update({'pago_editar': pago, 'mostrar_editar_pago': True})
+    contexto.update({'vehiculo_editar': vehiculo, 'mostrar_editar_vehiculo': True})
     return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def eliminar_vehiculo_view(request, vehiculo_id):
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        try:
+            vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+            vehiculo.delete()
+        except Vehiculo.DoesNotExist:
+            pass
+    return redirect('admin_dashboard')
+
+
+@login_required
+def detalle_envio_view(request, envio_id):
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        envio = Envio.objects.select_related('destinatario').get(id=envio_id)
+    except Envio.DoesNotExist:
+        return redirect('admin_dashboard')
+
+    contexto = _contexto_dashboard()
+    contexto.update({
+        'envio_detalle': envio,
+        'envio_pagos': envio.pagos.filter(anulado=False),
+        'envio_incidencias': envio.incidencias.all(),
+        'mostrar_detalle_envio': True,
+    })
+    return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def gestionar_reclamo_view(request, reclamo_id):
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        reclamo = Reclamo.objects.select_related('envio', 'cliente').get(id=reclamo_id)
+    except Reclamo.DoesNotExist:
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        estado = request.POST.get('estado')
+        respuesta = request.POST.get('respuesta', '')
+        if estado in dict(Reclamo.ESTADO_CHOICES):
+            reclamo.estado = estado
+            reclamo.respuesta = respuesta
+            reclamo.save()
+        return redirect('admin_dashboard')
+
+    contexto = _contexto_dashboard()
+    contexto.update({'reclamo_gestionar': reclamo, 'mostrar_gestionar_reclamo': True})
+    return render(request, 'administrador/dashboard.html', contexto)
+
 
 @login_required
 def anular_pago_view(request, pago_id):

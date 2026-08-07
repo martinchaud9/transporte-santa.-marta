@@ -29,6 +29,53 @@ def notificar_cambio_estado(envio):
     send_mail(asunto, cuerpo.format(codigo=envio.codigo), settings.DEFAULT_FROM_EMAIL, [envio.destinatario.email], fail_silently=True)
 
 
+def notificar_recibo_pago(pago):
+    envio = pago.envio
+    if not envio.destinatario.email:
+        return
+    lineas = [
+        'Recibimos tu pago. Detalle:',
+        '',
+        f'  Envío: {envio.codigo}',
+        f'  Monto: ${pago.monto}',
+        f'  Medio de pago: {pago.get_medio_pago_display()}',
+        f'  Fecha: {pago.fecha.strftime("%d/%m/%Y %H:%M") if pago.fecha else ""}',
+    ]
+    saldo = envio.saldo_pendiente
+    if saldo > 0:
+        lineas.append(f'  Saldo pendiente: ${saldo}')
+    else:
+        lineas.append('  Estado: Pagado en su totalidad')
+    lineas.append('')
+    lineas.append('¡Gracias por elegir Santa Marta!')
+    send_mail(
+        f'Recibo de pago — {envio.codigo}',
+        '\n'.join(lineas),
+        settings.DEFAULT_FROM_EMAIL,
+        [envio.destinatario.email],
+        fail_silently=True,
+    )
+
+
+def notificar_intento_fallido(envio):
+    if not envio.destinatario.email:
+        return
+    if envio.intentos_entrega >= envio.MAX_INTENTOS_ENTREGA:
+        asunto = 'Tu paquete te espera en la sucursal'
+        cuerpo = (
+            f'Visitamos tu domicilio para entregar el paquete {envio.codigo} y nuevamente no había nadie. '
+            'Como ya se realizaron los dos intentos de entrega, el paquete quedó retenido en la sucursal '
+            'de Santiago del Estero. Por favor acercate a retirarlo con tu DNI.'
+        )
+    else:
+        asunto = 'No pudimos entregar tu paquete'
+        cuerpo = (
+            f'Visitamos tu domicilio para entregar el paquete {envio.codigo} pero no había nadie. '
+            'En los próximos días lo visitaremos de nuevo.'
+        )
+    send_mail(asunto, cuerpo, settings.DEFAULT_FROM_EMAIL, [envio.destinatario.email], fail_silently=True)
+
+
 def notificar_demora(envio):
     if not envio.destinatario.email:
         return

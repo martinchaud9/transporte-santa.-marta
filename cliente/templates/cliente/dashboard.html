@@ -178,6 +178,19 @@
 
 <div class="content">
 
+  {% if messages %}
+  <div style="margin-bottom:20px;">
+    {% for message in messages %}
+    <div style="padding:12px 18px;border-radius:10px;font-size:.88rem;font-weight:600;margin-bottom:8px;
+      {% if message.tags == 'error' %}background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;
+      {% elif message.tags == 'success' %}background:#dcfce7;border:1.5px solid #86efac;color:#15803d;
+      {% else %}background:#dbeafe;border:1.5px solid #93c5fd;color:#1d4ed8;{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- MIS ENVIOS -->
   <div id="tab-mis-envios">
     <div class="section-title">Mis envíos activos</div>
@@ -220,6 +233,12 @@
         </div>
         <div class="envio-actions">
           <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
+          {% if envio.esta_pagado %}
+          <span class="badge" style="background:#dcfce7;color:#15803d;">Pagado</span>
+          {% else %}
+          <span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>
+          <button class="btn btn-primary" style="font-size:.75rem;padding:5px 10px;" onclick="abrirPago('{{ envio.id }}', '{{ envio.codigo }}', '{{ envio.saldo_pendiente }}')">Pagar ahora</button>
+          {% endif %}
           <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}')">Generar reclamo</button>
         </div>
       </div>
@@ -349,6 +368,65 @@
   </div>
 </div>
 
+<!-- MODAL PAGO -->
+<div id="modal-pago" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:28px;width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--blue-dark);margin-bottom:6px;">Pagar envío</div>
+    <div style="font-size:.85rem;color:var(--gray);margin-bottom:20px;">Envío <strong id="pago-envio-codigo"></strong> — Total a pagar: <strong id="pago-envio-monto" style="color:var(--blue-dark);"></strong></div>
+    <form method="POST" action="{% url 'cliente_pagar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="envio_id" id="pago-envio-id"/>
+      <div class="field">
+        <label>Medio de pago *</label>
+        <select name="medio_pago" id="pago-medio" onchange="toggleMedioPago(this)">
+          <option value="tarjeta">Tarjeta de crédito / débito</option>
+          <option value="transferencia">Transferencia bancaria</option>
+        </select>
+      </div>
+
+      <div id="pago-campos-tarjeta">
+        <div class="field">
+          <label>Número de tarjeta *</label>
+          <input type="text" name="tarjeta_numero" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000"/>
+        </div>
+        <div class="field">
+          <label>Nombre como figura en la tarjeta *</label>
+          <input type="text" name="tarjeta_nombre" placeholder="JUAN PEREZ"/>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div class="field" style="flex:1;">
+            <label>Vencimiento *</label>
+            <input type="text" name="tarjeta_vencimiento" maxlength="5" placeholder="MM/AA"/>
+          </div>
+          <div class="field" style="flex:1;">
+            <label>Cód. de seguridad *</label>
+            <input type="password" name="tarjeta_cvv" inputmode="numeric" maxlength="4" placeholder="123"/>
+          </div>
+        </div>
+        <div style="font-size:.75rem;color:var(--gray);margin-bottom:14px;">🔒 Demo académica: los datos de la tarjeta no se almacenan ni se realiza ningún cobro real.</div>
+      </div>
+
+      <div id="pago-campos-transferencia" style="display:none;">
+        <div style="background:var(--off-white);border:1.5px solid var(--gray-light);border-radius:10px;padding:14px 16px;font-size:.85rem;margin-bottom:14px;line-height:1.7;">
+          Transferí el total a la cuenta de Santa Marta:<br/>
+          <strong>Alias:</strong> SANTA.MARTA.SGO<br/>
+          <strong>CBU:</strong> 0000003100000000000001<br/>
+          <strong>Titular:</strong> Transporte Santa Marta S.R.L.
+        </div>
+        <div class="field">
+          <label>Número de comprobante de la transferencia *</label>
+          <input type="text" name="comprobante" placeholder="Ej: 000123456789"/>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-outline" onclick="cerrarPago()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Confirmar pago</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   function showTab(tab) {
     document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
@@ -366,6 +444,23 @@
 
   function cerrarModal() {
     document.getElementById('modal-reclamo').style.display = 'none';
+  }
+
+  function abrirPago(id, codigo, saldo) {
+    document.getElementById('pago-envio-id').value = id;
+    document.getElementById('pago-envio-codigo').textContent = codigo;
+    document.getElementById('pago-envio-monto').textContent = '$' + saldo;
+    document.getElementById('modal-pago').style.display = 'flex';
+  }
+
+  function cerrarPago() {
+    document.getElementById('modal-pago').style.display = 'none';
+  }
+
+  function toggleMedioPago(sel) {
+    const esTarjeta = sel.value === 'tarjeta';
+    document.getElementById('pago-campos-tarjeta').style.display = esTarjeta ? 'block' : 'none';
+    document.getElementById('pago-campos-transferencia').style.display = esTarjeta ? 'none' : 'block';
   }
 </script>
 </body>

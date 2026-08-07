@@ -15,6 +15,28 @@ class Usuario(AbstractUser):
     def __str__(self):
         return f"{self.get_full_name()} ({self.rol})"
     
+class Despacho(models.Model):
+    """Un camión despachado desde Casa Central hacia la sucursal."""
+    fecha_salida = models.DateTimeField(auto_now_add=True)
+    recepcion_finalizada = models.BooleanField(default=False)
+    fecha_recepcion_finalizada = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Camión #{self.id}"
+
+    @property
+    def total_envios(self):
+        return self.envios.count()
+
+    @property
+    def envios_recibidos(self):
+        return self.envios.exclude(estado__in=['pendiente', 'en_transito', 'extraviado']).count()
+
+    @property
+    def envios_pendientes_recepcion(self):
+        return self.envios.filter(estado='en_transito')
+
+
 class Envio(models.Model):
     ESTADO_CHOICES = [
         ('pendiente', 'Pendiente'),
@@ -40,6 +62,7 @@ class Envio(models.Model):
 
     codigo = models.CharField(max_length=20, unique=True, editable=False)
     destinatario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='envios')
+    despacho = models.ForeignKey(Despacho, on_delete=models.SET_NULL, null=True, blank=True, related_name='envios')
     contenido = models.CharField(max_length=200)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
@@ -52,9 +75,11 @@ class Envio(models.Model):
     lat = models.FloatField(null=True, blank=True)
     lon = models.FloatField(null=True, blank=True)
     notificado_demora = models.BooleanField(default=False)
+    intentos_entrega = models.PositiveSmallIntegerField(default=0)
 
     ESTADOS_ACTIVOS = ['pendiente', 'en_transito', 'en_sucursal', 'en_reparto']
     UMBRAL_DEMORA_DIAS = 2
+    MAX_INTENTOS_ENTREGA = 2
 
     def __str__(self):
         return self.codigo
@@ -68,6 +93,10 @@ class Envio(models.Model):
         return self.estado in self.ESTADOS_ACTIVOS and self.dias_sin_actualizar > self.UMBRAL_DEMORA_DIAS
 
     @property
+    def tiene_danio_reportado(self):
+        return self.incidencias.filter(tipo='danado').exists()
+
+    @property
     def monto_pagado(self):
         return self.pagos.filter(anulado=False).aggregate(total=models.Sum('monto'))['total'] or 0
 
@@ -75,10 +104,20 @@ class Envio(models.Model):
     def esta_pagado(self):
         return self.monto_pagado >= self.precio
 
+    @property
+    def saldo_pendiente(self):
+        return max(self.precio - self.monto_pagado, 0)
+
+    @property
+    def puede_entregarse(self):
+        # Regla de negocio: no se entrega sin pago completo, salvo que exista
+        # un pago parcial autorizado (cliente con relación comercial previa).
+        return self.esta_pagado or self.pagos.filter(anulado=False, es_parcial=True).exists()
+
 
 class Pago(models.Model):
     MEDIO_CHOICES = [
-        ('efectivo', 'Efectivo'),
+        ('tarjeta', 'Tarjeta'),
         ('transferencia', 'Transferencia bancaria'),
     ]
 

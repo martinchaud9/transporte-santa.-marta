@@ -128,6 +128,9 @@
   <a href="#" class="nav-item" onclick="showPage('envios')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>Envíos
   </a>
+  <a href="#" class="nav-item" onclick="showPage('camiones')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>Camiones
+  </a>
   <a href="#" class="nav-item" onclick="showPage('clientes')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Clientes
   </a>
@@ -144,6 +147,9 @@
   </a>
   <a href="#" class="nav-item" onclick="showPage('reclamos')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>Reclamos
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('incidencias')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>Incidencias
   </a>
   <a href="#" class="nav-item" onclick="showPage('reportes')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>Reportes
@@ -337,7 +343,7 @@
       </div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Patente</th><th>Marca / Modelo</th><th>Tipo</th><th>Empleado asignado</th></tr></thead>
+          <thead><tr><th>Patente</th><th>Marca / Modelo</th><th>Tipo</th><th>Empleado asignado</th><th>Acciones</th></tr></thead>
           <tbody>
             {% for vehiculo in vehiculos %}
             <tr>
@@ -351,9 +357,12 @@
                 <span class="badge badge-pendiente">Sin asignar</span>
                 {% endif %}
               </td>
+              <td>
+                <a href="{% url 'editar_vehiculo' vehiculo.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Editar</a>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:20px;">No hay vehículos registrados</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay vehículos registrados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -411,14 +420,75 @@
         <table>
           <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
           <tbody>
-            <tr><td><strong>ENV-0041</strong></td><td>García, Luis</td><td>28.456.789</td><td>Domicilio</td><td><span class="badge badge-reparto">En reparto</span></td><td><button class="action-btn">Ver</button></td></tr>
-            <tr><td><strong>ENV-0040</strong></td><td>Martínez, Ana</td><td>32.111.222</td><td>Sucursal</td><td><span class="badge badge-sucursal">En sucursal</span></td><td><button class="action-btn">Ver</button></td></tr>
-            <tr><td><strong>ENV-0039</strong></td><td>López, Carlos</td><td>25.333.444</td><td>Domicilio</td><td><span class="badge badge-entregado">Entregado</span></td><td><button class="action-btn">Ver</button></td></tr>
-            <tr><td><strong>ENV-0038</strong></td><td>Romero, Julia</td><td>30.555.666</td><td>Sucursal</td><td><span class="badge badge-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
-            <tr><td><strong>ENV-0037</strong></td><td>Díaz, Pedro</td><td>27.777.888</td><td>Domicilio</td><td><span class="badge badge-pendiente">Pendiente</span></td><td><button class="action-btn">Ver</button></td></tr>
+            {% for envio in todos_los_envios %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td>
+                <span class="badge
+                  {% if envio.estado == 'en_reparto' %}badge-reparto
+                  {% elif envio.estado == 'en_sucursal' %}badge-sucursal
+                  {% elif envio.estado == 'entregado' %}badge-entregado
+                  {% elif envio.estado == 'en_transito' %}badge-transit
+                  {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
+              </td>
+              <td><a href="{% url 'detalle_envio' envio.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Ver</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos registrados</td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- CAMIONES -->
+    <div id="page-camiones" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Camiones despachados desde Casa Central</div>
+      </div>
+      {% for despacho in despachos %}
+      <div class="table-card" style="margin-bottom:20px;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--gray-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:1rem;font-weight:700;color:var(--blue-dark);">🚚 Camión #{{ despacho.id }}</div>
+            <div style="font-size:.8rem;color:var(--gray);">Salida: {{ despacho.fecha_salida|date:"d/m/Y H:i" }} — {{ despacho.total_envios }} paquetes</div>
+          </div>
+          {% if despacho.recepcion_finalizada %}
+          <span class="badge badge-entregado">Recepción finalizada el {{ despacho.fecha_recepcion_finalizada|date:"d/m/Y H:i" }}</span>
+          {% else %}
+          <span class="badge badge-pendiente">Recepción en curso — {{ despacho.envios_recibidos }}/{{ despacho.total_envios }}</span>
+          {% endif %}
+        </div>
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in despacho.envios.all %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td>
+                <span class="badge
+                  {% if envio.estado == 'en_reparto' %}badge-reparto
+                  {% elif envio.estado == 'en_sucursal' %}badge-sucursal
+                  {% elif envio.estado == 'entregado' %}badge-entregado
+                  {% elif envio.estado == 'en_transito' %}badge-transit
+                  {% elif envio.estado == 'extraviado' %}badge-reclamo
+                  {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% empty %}
+      <div class="table-card">
+        <div style="text-align:center;color:var(--gray);padding:24px;">Todavía no se despachó ningún camión</div>
+      </div>
+      {% endfor %}
     </div>
 
     <!-- CLIENTES -->
@@ -446,17 +516,105 @@
 
     <!-- RECLAMOS -->
     <div id="page-reclamos" style="display:none;">
-      <div class="section-header"><div class="section-title">Reclamos</div></div>
+      <div class="section-header"><div class="section-title">Reclamos de clientes</div></div>
       <div class="table-card">
         <table>
-          <thead><tr><th>N° Reclamo</th><th>Envío</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
+          <thead><tr><th>N° Reclamo</th><th>Envío</th><th>Cliente</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Acción</th></tr></thead>
           <tbody>
-            <tr><td><strong>#001</strong></td><td>ENV-0035</td><td>García, Luis</td><td>Demora</td><td><span class="badge badge-reclamo">Nuevo</span></td><td><button class="action-btn">Gestionar</button></td></tr>
-            <tr><td><strong>#002</strong></td><td>ENV-0031</td><td>Martínez, Ana</td><td>Dirección incorrecta</td><td><span class="badge badge-proceso">En proceso</span></td><td><button class="action-btn">Gestionar</button></td></tr>
+            {% for reclamo in reclamos %}
+            <tr>
+              <td><strong>#{{ reclamo.id }}</strong></td>
+              <td>{{ reclamo.envio.codigo }}</td>
+              <td>{{ reclamo.cliente.get_full_name|default:reclamo.cliente.username }}</td>
+              <td>{{ reclamo.get_tipo_display }}</td>
+              <td>{{ reclamo.descripcion|truncatechars:60 }}</td>
+              <td>{{ reclamo.fecha_creacion|date:"d/m/Y" }}</td>
+              <td>
+                <span class="badge
+                  {% if reclamo.estado == 'nuevo' %}badge-reclamo
+                  {% elif reclamo.estado == 'en_proceso' %}badge-proceso
+                  {% else %}badge-entregado{% endif %}">{{ reclamo.get_estado_display }}</span>
+              </td>
+              <td><a href="{% url 'gestionar_reclamo' reclamo.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Gestionar</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" style="text-align:center;color:var(--gray);padding:20px;">No hay reclamos registrados</td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- INCIDENCIAS -->
+    <div id="page-incidencias" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Incidencias operativas</div>
+        <span style="font-size:.82rem;color:var(--gray);">Registradas por los empleados durante la recepción y el reparto</span>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Envío</th><th>Destinatario</th><th>Tipo</th><th>Descripción</th><th>Registrada por</th><th>Fecha</th></tr></thead>
+          <tbody>
+            {% for inc in incidencias %}
+            <tr>
+              <td><strong>{{ inc.envio.codigo }}</strong></td>
+              <td>{{ inc.envio.destinatario.get_full_name|default:inc.envio.destinatario.username }}</td>
+              <td>
+                <span class="badge
+                  {% if inc.tipo == 'perdido' %}badge-reclamo
+                  {% elif inc.tipo == 'danado' %}badge-reparto
+                  {% else %}badge-pendiente{% endif %}">{{ inc.get_tipo_display }}</span>
+              </td>
+              <td>{{ inc.descripcion }}</td>
+              <td>{{ inc.registrado_por.get_full_name|default:inc.registrado_por.username }}</td>
+              <td>{{ inc.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay incidencias registradas</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if reclamo_gestionar %}
+    <!-- GESTIONAR RECLAMO -->
+    <div id="page-gestionar-reclamo-{{ reclamo_gestionar.id }}" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Gestionar Reclamo #{{ reclamo_gestionar.id }}</div>
+        <button class="btn btn-outline" onclick="showPage('reclamos')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:700px;">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:.875rem;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid var(--gray-light);">
+          <div><strong>Envío:</strong> {{ reclamo_gestionar.envio.codigo }} — {{ reclamo_gestionar.envio.get_estado_display }}</div>
+          <div><strong>Cliente:</strong> {{ reclamo_gestionar.cliente.get_full_name|default:reclamo_gestionar.cliente.username }} ({{ reclamo_gestionar.cliente.email|default:"sin email" }})</div>
+          <div><strong>Tipo:</strong> {{ reclamo_gestionar.get_tipo_display }}</div>
+          <div><strong>Fecha:</strong> {{ reclamo_gestionar.fecha_creacion|date:"d/m/Y H:i" }}</div>
+          <div style="margin-top:8px;"><strong>Descripción del cliente:</strong></div>
+          <div style="background:var(--off-white);border-radius:9px;padding:12px 14px;line-height:1.6;">{{ reclamo_gestionar.descripcion }}</div>
+        </div>
+        <form method="POST" action="{% url 'gestionar_reclamo' reclamo_gestionar.id %}">
+          {% csrf_token %}
+          <div class="field" style="margin-bottom:16px;">
+            <label>Estado del reclamo *</label>
+            <select name="estado">
+              <option value="nuevo" {% if reclamo_gestionar.estado == 'nuevo' %}selected{% endif %}>Nuevo</option>
+              <option value="en_proceso" {% if reclamo_gestionar.estado == 'en_proceso' %}selected{% endif %}>En proceso</option>
+              <option value="resuelto" {% if reclamo_gestionar.estado == 'resuelto' %}selected{% endif %}>Resuelto</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:20px;">
+            <label>Respuesta al cliente</label>
+            <textarea name="respuesta" rows="4" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-light);border-radius:9px;font-family:'Barlow',sans-serif;font-size:.9rem;outline:none;" placeholder="Escribí la respuesta o el detalle de la gestión...">{{ reclamo_gestionar.respuesta }}</textarea>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('reclamos')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar gestión</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- REPORTES -->
     <div id="page-reportes" style="display:none;">
@@ -523,9 +681,7 @@
     <div id="page-pagos" style="display:none;">
       <div class="section-header">
         <div class="section-title">Pagos</div>
-        <button class="btn btn-primary" onclick="showPage('nuevo-pago')">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Nuevo pago
-        </button>
+        <span style="font-size:.82rem;color:var(--gray);">Los pagos los realizan los clientes desde su panel y aparecen acá automáticamente</span>
       </div>
       <div class="table-card" style="margin-bottom:24px;">
         <table>
@@ -543,13 +699,14 @@
                 {% elif pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>
                 {% else %}<span class="badge badge-sucursal">Pagado</span>{% endif %}
               </td>
-              <td style="display:flex;gap:8px;">
-                <a href="{% url 'editar_pago' pago.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Editar</a>
+              <td>
                 {% if not pago.anulado and pago.envio.estado != 'entregado' %}
                 <form method="POST" action="{% url 'anular_pago' pago.id %}" onsubmit="return confirm('¿Anular este pago?');">
                   {% csrf_token %}
                   <button type="submit" class="action-btn">Anular</button>
                 </form>
+                {% else %}
+                <span style="font-size:.75rem;color:var(--gray);">—</span>
                 {% endif %}
               </td>
             </tr>
@@ -579,84 +736,139 @@
       </div>
     </div>
 
-    <!-- NUEVO PAGO -->
-    <div id="page-nuevo-pago" style="display:none;">
+    {% if vehiculo_editar %}
+    <!-- EDITAR VEHICULO -->
+    <div id="page-editar-vehiculo-{{ vehiculo_editar.id }}" style="display:none;">
       <div class="section-header">
-        <div class="section-title">Registrar Nuevo Pago</div>
-        <button class="btn btn-outline" onclick="showPage('pagos')">← Volver</button>
+        <div class="section-title">Editar Vehículo — {{ vehiculo_editar.patente }}</div>
+        <button class="btn btn-outline" onclick="showPage('vehiculos')">← Volver</button>
       </div>
       <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
-        <form method="POST" action="{% url 'registrar_pago' %}">
+        <form method="POST" action="{% url 'editar_vehiculo' vehiculo_editar.id %}">
           {% csrf_token %}
           <div class="field-group">
+            <div class="field"><label>Patente</label><input type="text" value="{{ vehiculo_editar.patente }}" disabled/></div>
             <div class="field">
-              <label>Envío *</label>
-              <select name="envio" required>
-                <option value="">Seleccionar envío...</option>
-                {% for envio in todos_los_envios %}
-                <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</option>
+              <label>Tipo de vehículo *</label>
+              <select name="tipo">
+                <option value="moto" {% if vehiculo_editar.tipo == 'moto' %}selected{% endif %}>Moto</option>
+                <option value="auto" {% if vehiculo_editar.tipo == 'auto' %}selected{% endif %}>Auto</option>
+                <option value="camioneta" {% if vehiculo_editar.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
+                <option value="furgon" {% if vehiculo_editar.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
+              </select>
+            </div>
+            <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ vehiculo_editar.marca }}"/></div>
+            <div class="field"><label>Modelo</label><input type="text" name="modelo" value="{{ vehiculo_editar.modelo }}"/></div>
+            <div class="field">
+              <label>Empleado asignado</label>
+              <select name="empleado">
+                <option value="">Sin asignar</option>
+                {% for empleado in empleados %}
+                <option value="{{ empleado.id }}" {% if vehiculo_editar.empleado_id == empleado.id %}selected{% endif %}>{{ empleado.get_full_name|default:empleado.username }}</option>
                 {% endfor %}
               </select>
             </div>
-            <div class="field"><label>Monto *</label><input type="number" step="0.01" name="monto" placeholder="0.00" required/></div>
-            <div class="field">
-              <label>Medio de pago *</label>
-              <select name="medio_pago">
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia bancaria</option>
-              </select>
-            </div>
-            <div class="field">
-              <label><input type="checkbox" name="es_parcial" value="on" onchange="togglePagoParcial(this, 'justificacion-nuevo')" style="width:auto;display:inline-block;margin-right:8px;"/>Es un pago parcial</label>
-            </div>
-            <div class="field" id="justificacion-nuevo" style="display:none;">
-              <label>Justificación *</label>
-              <textarea name="justificacion" placeholder="Motivo del pago parcial (solo para clientes con más de 3 envíos pagados)"></textarea>
-            </div>
           </div>
           <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button type="button" class="btn btn-outline" onclick="showPage('pagos')">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Guardar pago</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    {% if pago_editar %}
-    <!-- EDITAR PAGO -->
-    <div id="page-editar-pago-{{ pago_editar.id }}" style="display:none;">
-      <div class="section-header">
-        <div class="section-title">Editar Pago — {{ pago_editar.envio.codigo }}</div>
-        <button class="btn btn-outline" onclick="showPage('pagos')">← Volver</button>
-      </div>
-      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
-        <form method="POST" action="{% url 'editar_pago' pago_editar.id %}">
-          {% csrf_token %}
-          <div class="field-group">
-            <div class="field"><label>Envío</label><input type="text" value="{{ pago_editar.envio.codigo }}" disabled/></div>
-            <div class="field"><label>Monto *</label><input type="number" step="0.01" name="monto" value="{{ pago_editar.monto|unlocalize }}" required/></div>
-            <div class="field">
-              <label>Medio de pago *</label>
-              <select name="medio_pago">
-                <option value="efectivo" {% if pago_editar.medio_pago == 'efectivo' %}selected{% endif %}>Efectivo</option>
-                <option value="transferencia" {% if pago_editar.medio_pago == 'transferencia' %}selected{% endif %}>Transferencia bancaria</option>
-              </select>
-            </div>
-            <div class="field">
-              <label><input type="checkbox" name="es_parcial" value="on" {% if pago_editar.es_parcial %}checked{% endif %} onchange="togglePagoParcial(this, 'justificacion-editar-{{ pago_editar.id }}')" style="width:auto;display:inline-block;margin-right:8px;"/>Es un pago parcial</label>
-            </div>
-            <div class="field" id="justificacion-editar-{{ pago_editar.id }}" style="{% if not pago_editar.es_parcial %}display:none;{% endif %}">
-              <label>Justificación *</label>
-              <textarea name="justificacion" placeholder="Motivo del pago parcial">{{ pago_editar.justificacion }}</textarea>
-            </div>
-          </div>
-          <input type="hidden" name="envio" value="{{ pago_editar.envio.id }}"/>
-          <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button type="button" class="btn btn-outline" onclick="showPage('pagos')">Cancelar</button>
+            <button type="button" class="btn btn-outline" onclick="showPage('vehiculos')">Cancelar</button>
             <button type="submit" class="btn btn-primary">Guardar cambios</button>
           </div>
         </form>
+        <hr style="margin:24px 0;border:none;border-top:1px solid var(--gray-light);"/>
+        <form method="POST" action="{% url 'eliminar_vehiculo' vehiculo_editar.id %}" onsubmit="return confirm('¿Eliminar este vehículo? Esta acción no se puede deshacer.');">
+          {% csrf_token %}
+          <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Eliminar vehículo</button>
+        </form>
       </div>
+    </div>
+    {% endif %}
+
+    {% if envio_detalle %}
+    <!-- DETALLE ENVIO -->
+    <div id="page-detalle-envio-{{ envio_detalle.id }}" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Detalle del Envío — {{ envio_detalle.codigo }}</div>
+        <button class="btn btn-outline" onclick="showPage('envios')">← Volver</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px;">
+        <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:16px;">Información general</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;">
+            <div><strong>Código:</strong> {{ envio_detalle.codigo }}</div>
+            <div><strong>Estado:</strong> <span class="badge
+              {% if envio_detalle.estado == 'en_reparto' %}badge-reparto
+              {% elif envio_detalle.estado == 'en_sucursal' %}badge-sucursal
+              {% elif envio_detalle.estado == 'entregado' %}badge-entregado
+              {% elif envio_detalle.estado == 'en_transito' %}badge-transit
+              {% else %}badge-pendiente{% endif %}">{{ envio_detalle.get_estado_display }}</span>
+              {% if envio_detalle.esta_demorado %}<span class="badge badge-reclamo" style="margin-left:6px;">Demorado</span>{% endif %}
+            </div>
+            <div><strong>Modalidad:</strong> {{ envio_detalle.get_modalidad_display }}</div>
+            {% if envio_detalle.despacho %}<div><strong>Camión:</strong> #{{ envio_detalle.despacho.id }} (salió el {{ envio_detalle.despacho.fecha_salida|date:"d/m/Y" }})</div>{% endif %}
+            {% if envio_detalle.intentos_entrega > 0 %}<div><strong>Intentos de entrega fallidos:</strong> {{ envio_detalle.intentos_entrega }}</div>{% endif %}
+            <div><strong>Contenido:</strong> {{ envio_detalle.contenido }}</div>
+            <div><strong>Precio:</strong> ${{ envio_detalle.precio }}</div>
+            {% if envio_detalle.direccion_entrega %}<div><strong>Dirección:</strong> {{ envio_detalle.direccion_entrega }}</div>{% endif %}
+            {% if envio_detalle.zona %}<div><strong>Zona:</strong> {{ envio_detalle.get_zona_display }}</div>{% endif %}
+          </div>
+        </div>
+        <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:16px;">Destinatario</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;">
+            <div><strong>Nombre:</strong> {{ envio_detalle.destinatario.get_full_name|default:envio_detalle.destinatario.username }}</div>
+            <div><strong>DNI:</strong> {{ envio_detalle.destinatario.dni }}</div>
+            <div><strong>Email:</strong> {{ envio_detalle.destinatario.email|default:"—" }}</div>
+            <div><strong>Teléfono:</strong> {{ envio_detalle.destinatario.telefono|default:"—" }}</div>
+          </div>
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin:20px 0 12px;">Fechas</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;">
+            <div><strong>Registro:</strong> {{ envio_detalle.fecha_registro|date:"d/m/Y H:i" }}</div>
+            <div><strong>Última actualización:</strong> {{ envio_detalle.fecha_actualizacion|date:"d/m/Y H:i" }}</div>
+            {% if envio_detalle.fecha_recepcion %}<div><strong>Recepción en sucursal:</strong> {{ envio_detalle.fecha_recepcion|date:"d/m/Y H:i" }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if envio_pagos %}
+      <div style="margin-top:20px;max-width:800px;">
+        <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:12px;">Pagos registrados</h3>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Monto</th><th>Medio</th><th>Fecha</th><th>Tipo</th></tr></thead>
+            <tbody>
+              {% for pago in envio_pagos %}
+              <tr>
+                <td>${{ pago.monto }}</td>
+                <td>{{ pago.get_medio_pago_display }}</td>
+                <td>{{ pago.fecha|date:"d/m/Y" }}</td>
+                <td>{% if pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>{% else %}<span class="badge badge-sucursal">Completo</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if envio_incidencias %}
+      <div style="margin-top:20px;max-width:800px;">
+        <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:12px;">Incidencias</h3>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Tipo</th><th>Descripción</th><th>Fecha</th></tr></thead>
+            <tbody>
+              {% for inc in envio_incidencias %}
+              <tr>
+                <td>{{ inc.get_tipo_display }}</td>
+                <td>{{ inc.descripcion|truncatechars:80 }}</td>
+                <td>{{ inc.fecha|date:"d/m/Y" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -677,9 +889,13 @@
       dashboard:'Dashboard', envios:'Gestión de Envíos', clientes:'Clientes',
       pagos:'Pagos', empleados:'Empleados', 'nuevo-empleado':'Registrar Empleado',
       vehiculos:'Vehículos', 'nuevo-vehiculo':'Registrar Vehículo',
-      reclamos:'Reclamos', reportes:'Reportes', 'nuevo-pago':'Registrar Pago'
+      reclamos:'Reclamos', reportes:'Reportes', camiones:'Camiones', incidencias:'Incidencias'
     };
-    const titulo = page.startsWith('editar-pago-') ? 'Editar Pago' : (titles[page] || 'Panel');
+    let titulo;
+    if (page.startsWith('editar-vehiculo-')) titulo = 'Editar Vehículo';
+    else if (page.startsWith('detalle-envio-')) titulo = 'Detalle del Envío';
+    else if (page.startsWith('gestionar-reclamo-')) titulo = 'Gestionar Reclamo';
+    else titulo = titles[page] || 'Panel';
     document.getElementById('page-title').textContent = titulo;
   }
 
@@ -687,15 +903,17 @@
     document.getElementById('periodo-field').style.display = select.value === 'mensual' ? 'block' : 'none';
   }
 
-  function togglePagoParcial(checkbox, idJustificacion) {
-    document.getElementById(idJustificacion).style.display = checkbox.checked ? 'block' : 'none';
-  }
-
   {% if mostrar_reportes %}
   showPage('reportes');
   {% endif %}
-  {% if mostrar_editar_pago %}
-  showPage('editar-pago-{{ pago_editar.id }}');
+  {% if mostrar_editar_vehiculo %}
+  showPage('editar-vehiculo-{{ vehiculo_editar.id }}');
+  {% endif %}
+  {% if mostrar_detalle_envio %}
+  showPage('detalle-envio-{{ envio_detalle.id }}');
+  {% endif %}
+  {% if mostrar_gestionar_reclamo %}
+  showPage('gestionar-reclamo-{{ reclamo_gestionar.id }}');
   {% endif %}
 </script>
 </body>

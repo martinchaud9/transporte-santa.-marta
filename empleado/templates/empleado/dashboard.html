@@ -146,6 +146,20 @@
 
   <div class="content">
 
+    {% if messages %}
+    <div style="margin-bottom:20px;">
+      {% for message in messages %}
+      <div style="padding:12px 18px;border-radius:10px;font-size:.88rem;font-weight:600;margin-bottom:8px;
+        {% if message.tags == 'error' %}background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;
+        {% elif message.tags == 'warning' %}background:#fef9c3;border:1.5px solid #fde047;color:#a16207;
+        {% elif message.tags == 'success' %}background:#dcfce7;border:1.5px solid #86efac;color:#15803d;
+        {% else %}background:#dbeafe;border:1.5px solid #93c5fd;color:#1d4ed8;{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- DASHBOARD -->
     <div id="page-dashboard">
       <div class="stats-grid">
@@ -178,7 +192,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}">
                   {% csrf_token %}
@@ -192,6 +206,13 @@
                   <input type="hidden" name="estado" value="entregado"/>
                   <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-suc-{{ envio.id }}')">Entregado</button>
                 </form>
+                {% if not envio.tiene_danio_reportado %}
+                <form method="POST" action="{% url 'empleado_reportar_danio' %}" onsubmit="return confirm('¿Reportar que este paquete está dañado?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">⚠ Daño</button>
+                </form>
+                {% endif %}
                 <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
               </td>
             </tr>
@@ -201,7 +222,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-dash-rep-{{ envio.id }}">
                   {% csrf_token %}
@@ -209,6 +230,18 @@
                   <input type="hidden" name="estado" value="entregado"/>
                   <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-rep-{{ envio.id }}')">Entregado</button>
                 </form>
+                <form method="POST" action="{% url 'empleado_ausente' %}" onsubmit="return confirm('¿Confirmar que el destinatario no se encontraba en el domicilio?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">Ausente</button>
+                </form>
+                {% if not envio.tiene_danio_reportado %}
+                <form method="POST" action="{% url 'empleado_reportar_danio' %}" onsubmit="return confirm('¿Reportar que este paquete está dañado?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">⚠ Daño</button>
+                </form>
+                {% endif %}
                 <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
               </td>
             </tr>
@@ -238,25 +271,86 @@
           </div>
         </form>
       </div>
-      <div class="section-header"><div class="section-title">Paquetes en tránsito esperando recepción</div></div>
-      <div class="table-card">
+      <div class="section-header"><div class="section-title">Camiones pendientes de recepción</div></div>
+      {% for despacho in despachos_pendientes %}
+      <div class="table-card" style="margin-bottom:20px;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--gray-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:1rem;font-weight:700;color:var(--blue-dark);">🚚 Camión #{{ despacho.id }}</div>
+            <div style="font-size:.8rem;color:var(--gray);">Despachado el {{ despacho.fecha_salida|date:"d/m/Y H:i" }} — {{ despacho.envios_recibidos }} de {{ despacho.total_envios }} paquetes recibidos</div>
+          </div>
+          <form method="POST" action="{% url 'empleado_finalizar_recepcion' %}" onsubmit="return confirm('¿Finalizar la recepción de este camión? Los paquetes que no hayas recibido se marcarán como faltantes.');">
+            {% csrf_token %}
+            <input type="hidden" name="despacho_id" value="{{ despacho.id }}"/>
+            <button type="submit" class="btn btn-primary" style="padding:7px 14px;font-size:.8rem;">Finalizar recepción</button>
+          </form>
+        </div>
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead>
           <tbody>
-            {% for envio in envios_transito %}
+            {% for envio in despacho.envios.all %}
             <tr>
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-transit">En tránsito</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
+              <td>
+                {% if envio.estado == 'en_transito' %}
+                <span class="badge badge-transit">Esperando</span>
+                {% elif envio.estado == 'extraviado' %}
+                <span class="badge" style="background:#fee2e2;color:#dc2626;">Faltante</span>
+                {% else %}
+                <span class="badge badge-sucursal">✓ Recibido</span>
+                {% endif %}
+                {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}
+              </td>
+              <td>
+                {% if envio.estado == 'en_transito' %}
+                <form method="POST" action="{% url 'empleado_recepcionar_danado' %}" onsubmit="return confirm('¿Registrar este paquete como recibido CON DAÑOS?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-red" style="padding:5px 10px;font-size:.75rem;">Llegó dañado</button>
+                </form>
+                {% elif envio.estado != 'extraviado' and not envio.tiene_danio_reportado %}
+                <form method="POST" action="{% url 'empleado_reportar_danio' %}" onsubmit="return confirm('¿Reportar que este paquete está dañado?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">⚠ Reportar daño</button>
+                </form>
+                {% else %}
+                <span style="color:var(--gray);font-size:.8rem;">—</span>
+                {% endif %}
+              </td>
             </tr>
-            {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay paquetes en tránsito</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% empty %}
+      <div class="table-card">
+        <div style="text-align:center;color:var(--gray);padding:24px;">No hay camiones pendientes de recepción</div>
+      </div>
+      {% endfor %}
+
+      {% if transito_sin_despacho %}
+      <div class="section-header" style="margin-top:24px;"><div class="section-title">Paquetes en tránsito sin camión asignado</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for envio in transito_sin_despacho %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.dni }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td><span class="badge badge-transit">En tránsito</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
     </div>
 
     <!-- PENDIENTES -->
@@ -272,7 +366,7 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td>
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-suc-{{ envio.id }}">
                   {% csrf_token %}
@@ -289,13 +383,18 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %}</td>
-              <td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-rep-{{ envio.id }}">
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
                   <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-pend-rep-{{ envio.id }}')">Marcar entregado</button>
+                </form>
+                <form method="POST" action="{% url 'empleado_ausente' %}" onsubmit="return confirm('¿Confirmar que el destinatario no se encontraba en el domicilio?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-outline" style="padding:5px 12px;font-size:.78rem;">Ausente</button>
                 </form>
               </td>
             </tr>
@@ -303,6 +402,33 @@
             {% if not envios_sucursal and not envios_reparto %}
             <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
             {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-header" style="margin-top:24px;"><div class="section-title">Paquetes retenidos en sucursal</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Teléfono</th><th>Intentos</th><th>Acción</th></tr></thead>
+          <tbody>
+            {% for envio in envios_retenidos %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name }}</td>
+              <td>{{ envio.destinatario.telefono }}</td>
+              <td><span class="badge" style="background:#fee2e2;color:#dc2626;">{{ envio.intentos_entrega }} intentos fallidos</span> {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td>
+                <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-ret-{{ envio.id }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <input type="hidden" name="estado" value="entregado"/>
+                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-ret-{{ envio.id }}')">Entregar en sucursal</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay paquetes retenidos</td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>

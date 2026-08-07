@@ -122,6 +122,9 @@
   <a href="#" class="nav-item" onclick="showPage('manifiesto')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>Manifiesto de recepción
   </a>
+  <a href="#" class="nav-item" onclick="showPage('incidencias')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>Incidencias de sucursal
+  </a>
 
   <div class="sidebar-footer">
     <a href="/" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);text-decoration:none;font-size:.82rem;font-weight:600;margin-bottom:10px;transition:background .2s;">
@@ -221,10 +224,11 @@
           <div class="form-card-title">Datos del envío</div>
           <form method="POST" action="{% url 'casacentral_nuevo_envio' %}">
             {% csrf_token %}
-            <div class="field"><label>Nombre del destinatario *</label><input type="text" name="destinatario_nombre" placeholder="Juan Pérez" required/></div>
-            <div class="field"><label>DNI / CUIT *</label><input type="text" name="destinatario_dni" placeholder="20-12345678-9" required/></div>
-            <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" placeholder="+54 385 000 0000" required/></div>
-            <div class="field"><label>Email del destinatario</label><input type="email" name="email" placeholder="destinatario@correo.com"/></div>
+            <div class="field"><label>DNI / CUIT *</label><input type="text" name="destinatario_dni" id="input-dni" placeholder="20-12345678-9" required/></div>
+            <div id="aviso-cliente" style="display:none;background:#dcfce7;border:1.5px solid #86efac;color:#15803d;border-radius:9px;padding:10px 14px;font-size:.82rem;font-weight:600;margin-bottom:16px;"></div>
+            <div class="field"><label>Nombre del destinatario *</label><input type="text" name="destinatario_nombre" id="input-nombre" placeholder="Juan Pérez" required/></div>
+            <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" id="input-telefono" placeholder="+54 385 000 0000" required/></div>
+            <div class="field"><label>Email del destinatario</label><input type="email" name="email" id="input-email" placeholder="destinatario@correo.com"/></div>
             <div class="field"><label>Contenido del paquete *</label><input type="text" name="contenido" placeholder="Ej: Ropa, electrónica..." required/></div>
             <div class="field"><label>Precio del servicio *</label><input type="number" name="precio" placeholder="0.00" step="0.01" required/></div>
             <div class="field">
@@ -304,6 +308,60 @@
       </div>
     </div>
 
+    <!-- INCIDENCIAS DE SUCURSAL -->
+    <div id="page-incidencias" style="display:none;">
+      <div class="section-header"><div class="section-title">Incidencias reportadas por la sucursal</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:16px;">
+        Faltantes y daños detectados en Santiago del Estero al recibir los camiones despachados desde Casa Central. Se generan solos, sin aviso telefónico.
+      </p>
+
+      <div class="table-card" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Camión</th><th>Salida</th><th>Despachados</th><th>Recibidos</th><th>Estado de la recepción</th></tr></thead>
+          <tbody>
+            {% for despacho in despachos %}
+            <tr>
+              <td><strong>🚚 Camión #{{ despacho.id }}</strong></td>
+              <td>{{ despacho.fecha_salida|date:"d/m/Y H:i" }}</td>
+              <td>{{ despacho.total_envios }}</td>
+              <td>{{ despacho.envios_recibidos }}</td>
+              <td>
+                {% if despacho.recepcion_finalizada %}
+                <span class="badge badge-recibido">Finalizada el {{ despacho.fecha_recepcion_finalizada|date:"d/m/Y H:i" }}</span>
+                {% else %}
+                <span class="badge badge-pendiente">En curso</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">Todavía no se despachó ningún camión</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-header"><div class="section-title">Detalle de incidencias</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Envío</th><th>Camión</th><th>Tipo</th><th>Descripción</th><th>Reportada por</th><th>Fecha</th></tr></thead>
+          <tbody>
+            {% for inc in incidencias_sucursal %}
+            <tr>
+              <td><strong>{{ inc.envio.codigo }}</strong></td>
+              <td>#{{ inc.envio.despacho.id }}</td>
+              <td><span class="badge {% if inc.tipo == 'perdido' %}badge-pendiente{% else %}badge-transito{% endif %}">{{ inc.get_tipo_display }}</span></td>
+              <td>{{ inc.descripcion }}</td>
+              <td>{{ inc.registrado_por.get_full_name|default:inc.registrado_por.username }}</td>
+              <td>{{ inc.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">La sucursal no reportó ninguna incidencia</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ENTREGADOS -->
     <div id="page-entregados" style="display:none;">
       <div class="section-header"><div class="section-title">Envíos Entregados</div></div>
@@ -355,7 +413,7 @@
     const titles = {
       dashboard: 'Dashboard', 'nuevo-envio': 'Nuevo Envío',
       'en-transito': 'En Tránsito', entregados: 'Envíos Entregados',
-      manifiesto: 'Manifiesto de Recepción'
+      manifiesto: 'Manifiesto de Recepción', incidencias: 'Incidencias de Sucursal'
     };
     document.getElementById('topbar-title').textContent = titles[page] || 'Panel';
   }
@@ -373,6 +431,41 @@
 
   function cerrarEtiqueta() {
     document.getElementById('modal-etiqueta').classList.remove('open');
+  }
+
+  // Detección de cliente existente por DNI en el formulario de nuevo envío
+  let timerDni = null;
+  document.getElementById('input-dni').addEventListener('input', function () {
+    clearTimeout(timerDni);
+    const dni = this.value.trim();
+    timerDni = setTimeout(() => consultarCliente(dni), 400);
+  });
+
+  function consultarCliente(dni) {
+    const aviso = document.getElementById('aviso-cliente');
+    const campos = ['input-nombre', 'input-telefono', 'input-email'].map(id => document.getElementById(id));
+    if (!dni) {
+      aviso.style.display = 'none';
+      campos.forEach(c => c.readOnly = false);
+      return;
+    }
+    fetch('/casacentral/clientes/buscar/?dni=' + encodeURIComponent(dni))
+      .then(r => r.json())
+      .then(data => {
+        if (data.existe) {
+          aviso.textContent = '✓ Cliente ya registrado: ' + data.nombre + ' (' + data.envios + ' envíos previos). Se usará su ficha existente.';
+          aviso.style.display = 'block';
+          const valores = { 'input-nombre': data.nombre, 'input-telefono': data.telefono, 'input-email': data.email };
+          campos.forEach(c => {
+            if (valores[c.id]) { c.value = valores[c.id]; c.readOnly = true; }
+            else { c.readOnly = false; }
+          });
+        } else {
+          aviso.style.display = 'none';
+          campos.forEach(c => c.readOnly = false);
+        }
+      })
+      .catch(() => {});
   }
 </script>
 </body>
