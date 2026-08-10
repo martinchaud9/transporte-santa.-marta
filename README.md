@@ -6,65 +6,105 @@ llegan desde la Casa Central de Buenos Aires.
 
 Proyecto académico desarrollado en Django 5.2 con SQLite.
 
-## Cómo ejecutarlo
+## Requisito previo: Python 3.10 o superior
 
-### Requisito: Python 3.10 o superior
-
-Verificar la versión instalada:
+Django 5.2 **no funciona** con versiones anteriores. Para verificar qué versión hay instalada:
 
 ```bash
-python3 --version
+python --version
 ```
 
-> **Importante en macOS:** el sistema trae de fábrica Python 3.9, que **no sirve**
-> (Django 5.2 necesita 3.10 o superior). Si `python3 --version` devuelve 3.9,
-> hay que instalar una versión más nueva desde <https://www.python.org/downloads/>
-> y usar ese comando (por ejemplo `python3.12`) en el paso 2.
->
-> El síntoma de usar una versión vieja es este error al instalar:
+Si el comando no existe o devuelve algo menor a 3.10, instalar Python desde
+<https://www.python.org/downloads/>. **En Windows, durante la instalación hay que
+tildar la casilla "Add python.exe to PATH"** (está abajo de todo en la primera
+pantalla) — si no, ningún comando de esta guía va a funcionar.
+
+> Síntoma de estar usando una versión vieja: al instalar las dependencias aparece
 > `No matching distribution found for Django==5.2.11`.
+>
+> En macOS el sistema trae Python 3.9 de fábrica, que tampoco sirve.
+
+---
+
+## Cómo ejecutarlo en Windows
+
+Abrir **PowerShell** (botón de Windows → escribir "PowerShell" → Enter) y ejecutar
+los comandos uno por uno.
 
 **1. Descargar el proyecto**
 
-```bash
+```powershell
 git clone https://github.com/martinchaud9/transporte-santa.-marta.git
 cd transporte-santa.-marta
 ```
 
-**2. Crear el entorno virtual e instalar las dependencias**
+Si no tenés Git instalado, se puede descargar el proyecto como ZIP desde el botón
+verde **Code → Download ZIP** de GitHub, descomprimirlo y entrar a la carpeta.
 
-En macOS / Linux:
+**2. Crear el entorno virtual**
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-En Windows:
-
-```bash
+```powershell
 python -m venv venv
-venv\Scripts\activate
+```
+
+**3. Activar el entorno virtual**
+
+```powershell
+venv\Scripts\Activate.ps1
+```
+
+> **Si aparece el error "no se puede cargar el archivo ... la ejecución de scripts
+> está deshabilitada en este sistema"**, es una restricción de PowerShell.
+> Ejecutar esto una vez y volver a intentar el paso 3:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+> ```
+>
+> (Solo afecta a esa ventana de PowerShell, no cambia la configuración de Windows.)
+
+Cuando el entorno está activado, aparece `(venv)` al principio de la línea.
+
+**4. Instalar las dependencias**
+
+```powershell
 pip install -r requirements.txt
 ```
 
-**3. Aplicar las migraciones**
+**5. Aplicar las migraciones**
 
-```bash
+```powershell
 python manage.py migrate
 ```
 
-**4. Levantar el servidor**
+**6. Levantar el servidor**
 
-```bash
+```powershell
 python manage.py runserver
 ```
 
 Abrir <http://127.0.0.1:8000> en el navegador. Para frenar el servidor: `Ctrl + C`.
 
-> Cada vez que se abre una terminal nueva hay que volver a activar el entorno
-> (`source venv/bin/activate`) antes de levantar el servidor.
+> Los pasos 1, 2, 4 y 5 se hacen **una sola vez**. Para volver a usar el sistema
+> después, alcanza con abrir PowerShell en la carpeta del proyecto y repetir los
+> pasos 3 y 6 (activar el entorno y levantar el servidor).
+
+---
+
+## Cómo ejecutarlo en macOS / Linux
+
+```bash
+git clone https://github.com/martinchaud9/transporte-santa.-marta.git
+cd transporte-santa.-marta
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Después de la primera vez, alcanza con `source venv/bin/activate` y
+`python manage.py runserver`.
 
 ## Cuentas de prueba
 
@@ -93,7 +133,17 @@ contenido de cada notificación.
 
 Para enviarlos de verdad con una cuenta de Gmail, definir estas dos variables de
 entorno antes de levantar el servidor (hace falta una *contraseña de aplicación*
-de Google, no la contraseña normal de la cuenta):
+de Google, no la contraseña normal de la cuenta).
+
+En Windows (PowerShell):
+
+```powershell
+$env:EMAIL_HOST_USER="tucuenta@gmail.com"
+$env:EMAIL_HOST_PASSWORD="tu_contrasena_de_aplicacion"
+python manage.py runserver
+```
+
+En macOS / Linux:
 
 ```bash
 export EMAIL_HOST_USER="tucuenta@gmail.com"
