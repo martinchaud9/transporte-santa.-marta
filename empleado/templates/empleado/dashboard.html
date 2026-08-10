@@ -114,9 +114,6 @@
   <a href="#" class="nav-item" onclick="showPage('pendientes')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>Envíos pendientes
   </a>
-  <a href="#" class="nav-item" onclick="showPage('incidencias')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>Registrar incidencia
-  </a>
   <a href="{% url 'empleado_preparar_reparto' %}" class="nav-item">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Preparar reparto
   </a>
@@ -213,7 +210,13 @@
                   <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">⚠ Daño</button>
                 </form>
                 {% endif %}
-                <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
+                {% if not envio.tiene_perdida_reportada %}
+                <form method="POST" action="{% url 'empleado_reportar_perdida' %}" onsubmit="return confirm('¿Reportar este paquete como perdido? Quedará marcado como extraviado.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-red" style="padding:5px 10px;font-size:.75rem;">Perdido</button>
+                </form>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -242,7 +245,13 @@
                   <button type="submit" class="btn btn-outline" style="padding:5px 10px;font-size:.75rem;">⚠ Daño</button>
                 </form>
                 {% endif %}
-                <button class="btn btn-red" style="padding:5px 10px;font-size:.75rem;" onclick="abrirIncidencia('{{ envio.id }}', '{{ envio.codigo }}')">Incidencia</button>
+                {% if not envio.tiene_perdida_reportada %}
+                <form method="POST" action="{% url 'empleado_reportar_perdida' %}" onsubmit="return confirm('¿Reportar este paquete como perdido? Quedará marcado como extraviado.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
+                  <button type="submit" class="btn btn-red" style="padding:5px 10px;font-size:.75rem;">Perdido</button>
+                </form>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -434,47 +443,6 @@
       </div>
     </div>
 
-    <!-- INCIDENCIAS -->
-    <div id="page-incidencias" style="display:none;">
-      <div class="section-header"><div class="section-title">Registrar Incidencia</div></div>
-      <div class="form-card">
-        <form method="POST" action="{% url 'empleado_incidencia' %}">
-          {% csrf_token %}
-          <div class="field">
-            <label>Envío afectado *</label>
-            <select name="envio_id" required>
-              <option value="">Seleccionar envío...</option>
-              {% for envio in envios_sucursal %}
-              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
-              {% endfor %}
-              {% for envio in envios_reparto %}
-              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
-              {% endfor %}
-              {% for envio in envios_transito %}
-              <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.destinatario.get_full_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field">
-            <label>Tipo de incidencia *</label>
-            <select name="tipo" required>
-              <option value="danado">Paquete dañado</option>
-              <option value="perdido">Paquete perdido</option>
-              <option value="direccion">Dirección incorrecta</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Descripción detallada *</label>
-            <textarea name="descripcion" placeholder="Describí el problema con detalle..." required></textarea>
-          </div>
-          <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button type="button" class="btn btn-outline" onclick="showPage('dashboard')">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Registrar incidencia</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <!-- PREPARAR REPARTO -->
     <div id="page-reparto" style="display:none;">
       <div class="section-header"><div class="section-title">Preparar Reparto por Zona</div></div>
@@ -565,35 +533,6 @@
   </div>
 </div>
 
-<!-- MODAL INCIDENCIA RÁPIDA -->
-<div class="modal-overlay" id="modal-incidencia">
-  <div class="modal">
-    <div class="modal-title">Registrar Incidencia</div>
-    <form method="POST" action="{% url 'empleado_incidencia' %}">
-      {% csrf_token %}
-      <input type="hidden" name="envio_id" id="modal-envio-id"/>
-      <div class="field">
-        <label>Envío: <strong id="modal-envio-codigo"></strong></label>
-      </div>
-      <div class="field">
-        <label>Tipo de incidencia *</label>
-        <select name="tipo">
-          <option value="danado">Paquete dañado</option>
-          <option value="perdido">Paquete perdido</option>
-          <option value="direccion">Dirección incorrecta</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Descripción *</label>
-        <textarea name="descripcion" placeholder="Describí el problema..." required></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Registrar</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <script>
   const d = new Date();
@@ -617,15 +556,6 @@
   showPage('reparto');
   {% endif %}
 
-  function abrirIncidencia(id, codigo) {
-    document.getElementById('modal-envio-id').value = id;
-    document.getElementById('modal-envio-codigo').textContent = codigo;
-    document.getElementById('modal-incidencia').classList.add('open');
-  }
-
-  function cerrarModal() {
-    document.getElementById('modal-incidencia').classList.remove('open');
-  }
 
   // --- Escaneo QR (recepción y entrega) ---
   let html5QrCode = null;

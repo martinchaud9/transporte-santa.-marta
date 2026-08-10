@@ -1,5 +1,17 @@
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail as _send_mail
+
+
+def enviar(asunto, cuerpo, destinatario):
+    """Envía un correo sin interrumpir la operación si falla, pero dejando
+    el error visible en la terminal del servidor para poder diagnosticarlo."""
+    if not destinatario:
+        print(f'[email] NO ENVIADO ("{asunto}"): el destinatario no tiene email cargado.')
+        return
+    try:
+        _send_mail(asunto, cuerpo, settings.DEFAULT_FROM_EMAIL, [destinatario], fail_silently=False)
+    except Exception as e:
+        print(f'[email] ERROR al enviar "{asunto}" a {destinatario}: {type(e).__name__}: {e}')
 
 MENSAJES_ESTADO = {
     'en_transito': (
@@ -23,16 +35,14 @@ MENSAJES_ESTADO = {
 
 def notificar_cambio_estado(envio):
     datos = MENSAJES_ESTADO.get(envio.estado)
-    if not datos or not envio.destinatario.email:
+    if not datos:
         return
     asunto, cuerpo = datos
-    send_mail(asunto, cuerpo.format(codigo=envio.codigo), settings.DEFAULT_FROM_EMAIL, [envio.destinatario.email], fail_silently=True)
+    enviar(asunto, cuerpo.format(codigo=envio.codigo), envio.destinatario.email)
 
 
 def notificar_recibo_pago(pago):
     envio = pago.envio
-    if not envio.destinatario.email:
-        return
     lineas = [
         'Recibimos tu pago. Detalle:',
         '',
@@ -48,18 +58,10 @@ def notificar_recibo_pago(pago):
         lineas.append('  Estado: Pagado en su totalidad')
     lineas.append('')
     lineas.append('¡Gracias por elegir Santa Marta!')
-    send_mail(
-        f'Recibo de pago — {envio.codigo}',
-        '\n'.join(lineas),
-        settings.DEFAULT_FROM_EMAIL,
-        [envio.destinatario.email],
-        fail_silently=True,
-    )
+    enviar(f'Recibo de pago — {envio.codigo}', '\n'.join(lineas), envio.destinatario.email)
 
 
 def notificar_intento_fallido(envio):
-    if not envio.destinatario.email:
-        return
     if envio.intentos_entrega >= envio.MAX_INTENTOS_ENTREGA:
         asunto = 'Tu paquete te espera en la sucursal'
         cuerpo = (
@@ -73,16 +75,12 @@ def notificar_intento_fallido(envio):
             f'Visitamos tu domicilio para entregar el paquete {envio.codigo} pero no había nadie. '
             'En los próximos días lo visitaremos de nuevo.'
         )
-    send_mail(asunto, cuerpo, settings.DEFAULT_FROM_EMAIL, [envio.destinatario.email], fail_silently=True)
+    enviar(asunto, cuerpo, envio.destinatario.email)
 
 
 def notificar_demora(envio):
-    if not envio.destinatario.email:
-        return
-    send_mail(
+    enviar(
         'Tu envío está demorado',
         f'Tu paquete {envio.codigo} lleva más de {envio.UMBRAL_DEMORA_DIAS} días sin actualizar su estado. Estamos revisando la demora.',
-        settings.DEFAULT_FROM_EMAIL,
-        [envio.destinatario.email],
-        fail_silently=True,
+        envio.destinatario.email,
     )

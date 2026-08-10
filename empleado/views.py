@@ -122,6 +122,33 @@ def reportar_danio_view(request):
     return redirect('empleado_dashboard')
 
 @login_required
+def reportar_perdida_view(request):
+    """Reporta que un paquete se perdió: genera la incidencia y lo marca extraviado."""
+    if request.user.rol != 'empleado':
+        return redirect('inicio')
+    if request.method == 'POST':
+        envio_id = request.POST.get('envio_id')
+        try:
+            envio = Envio.objects.get(id=envio_id)
+        except Envio.DoesNotExist:
+            messages.error(request, 'El envío no existe.')
+            return redirect('empleado_dashboard')
+
+        if envio.tiene_perdida_reportada:
+            messages.info(request, f'{envio.codigo} ya figura como perdido.')
+        else:
+            Incidencia.objects.create(
+                envio=envio,
+                registrado_por=request.user,
+                tipo='perdido',
+                descripcion=f'Paquete reportado como perdido en la sucursal (estado previo: {envio.get_estado_display()}).',
+            )
+            envio.estado = 'extraviado'
+            envio.save()
+            messages.warning(request, f'{envio.codigo} quedó marcado como extraviado. Se generó la incidencia automáticamente.')
+    return redirect('empleado_dashboard')
+
+@login_required
 def finalizar_recepcion_view(request):
     if request.user.rol != 'empleado':
         return redirect('inicio')
@@ -188,15 +215,31 @@ def preparar_reparto_view(request):
         return redirect('inicio')
     candidatos = Envio.objects.filter(estado='en_sucursal', modalidad='domicilio')
 
-    sin_zona_previo = candidatos.filter(zona='')
+    sin_zona_previo = list(candidatos.filter(zona=''))
+    fallidos = []
     for i, envio in enumerate(sin_zona_previo):
         if i > 0:
             time.sleep(1)  # respeta el límite de 1 request/segundo de Nominatim
         coordenadas = geocodificar(envio.direccion_entrega)
+        if not coordenadas:
+            # Nominatim puede fallar por falta de internet, demora o dirección
+            # inexistente; se reintenta una vez antes de darlo por perdido.
+            time.sleep(1)
+            coordenadas = geocodificar(envio.direccion_entrega)
         if coordenadas:
             envio.lat, envio.lon = coordenadas
             envio.zona = calcular_zona(*coordenadas)
             envio.save()
+        else:
+            fallidos.append(envio.codigo)
+
+    if fallidos:
+        messages.warning(
+            request,
+            f'No se pudo ubicar en el mapa la dirección de {len(fallidos)} envío(s): {", ".join(fallidos)}. '
+            'Puede ser por falta de internet o porque la dirección no existe. '
+            'Asignales la zona a mano en el listado de abajo.'
+        )
 
     zonas = [
         (clave, etiqueta, ordenar_ruta(list(candidatos.filter(zona=clave))))
@@ -244,23 +287,3 @@ def asignar_zona_manual_view(request):
         except Envio.DoesNotExist:
             pass
     return redirect('empleado_preparar_reparto')
-
-@login_required
-def registrar_incidencia_view(request):
-    if request.user.rol != 'empleado':
-        return redirect('inicio')
-    if request.method == 'POST':
-        envio_id = request.POST.get('envio_id')
-        tipo = request.POST.get('tipo')
-        descripcion = request.POST.get('descripcion')
-        try:
-            envio = Envio.objects.get(id=envio_id)
-            Incidencia.objects.create(
-                envio=envio,
-                registrado_por=request.user,
-                tipo=tipo,
-                descripcion=descripcion,
-            )
-        except Envio.DoesNotExist:
-            pass
-    return redirect('empleado_dashboard')

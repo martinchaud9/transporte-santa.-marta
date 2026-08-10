@@ -97,6 +97,10 @@ class Envio(models.Model):
         return self.incidencias.filter(tipo='danado').exists()
 
     @property
+    def tiene_perdida_reportada(self):
+        return self.incidencias.filter(tipo='perdido').exists()
+
+    @property
     def monto_pagado(self):
         return self.pagos.filter(anulado=False).aggregate(total=models.Sum('monto'))['total'] or 0
 
