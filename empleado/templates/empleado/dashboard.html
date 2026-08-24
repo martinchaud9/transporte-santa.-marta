@@ -117,6 +117,9 @@
   <a href="{% url 'empleado_preparar_reparto' %}" class="nav-item">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Preparar reparto
   </a>
+  <a href="#" class="nav-item" onclick="showPage('mis-entregas')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Mis entregas
+  </a>
 
   <div class="sidebar-footer">
     <div class="user-badge">
@@ -201,7 +204,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-suc-{{ envio.id }}')">Entregado</button>
+                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
                 </form>
                 {% if not envio.tiene_danio_reportado %}
                 <form method="POST" action="{% url 'empleado_reportar_danio' %}" onsubmit="return confirm('¿Reportar que este paquete está dañado?');">
@@ -231,7 +234,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="button" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-dash-rep-{{ envio.id }}')">Entregado</button>
+                  <button type="submit" class="btn btn-green" style="padding:5px 10px;font-size:.75rem;">Entregado</button>
                 </form>
                 <form method="POST" action="{% url 'empleado_ausente' %}" onsubmit="return confirm('¿Confirmar que el destinatario no se encontraba en el domicilio?');">
                   {% csrf_token %}
@@ -381,7 +384,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-pend-suc-{{ envio.id }}')">Marcar entregado</button>
+                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
                 </form>
               </td>
             </tr>
@@ -398,7 +401,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-pend-rep-{{ envio.id }}')">Marcar entregado</button>
+                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Marcar entregado</button>
                 </form>
                 <form method="POST" action="{% url 'empleado_ausente' %}" onsubmit="return confirm('¿Confirmar que el destinatario no se encontraba en el domicilio?');">
                   {% csrf_token %}
@@ -431,12 +434,38 @@
                   {% csrf_token %}
                   <input type="hidden" name="envio_id" value="{{ envio.id }}"/>
                   <input type="hidden" name="estado" value="entregado"/>
-                  <button type="button" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;" onclick="abrirScanEntrega('{{ envio.codigo }}', 'form-entregar-ret-{{ envio.id }}')">Entregar en sucursal</button>
+                  <button type="submit" class="btn btn-green" style="padding:5px 12px;font-size:.78rem;">Entregar en sucursal</button>
                 </form>
               </td>
             </tr>
             {% empty %}
             <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay paquetes retenidos</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MIS ENTREGAS -->
+    <div id="page-mis-entregas" style="display:none;">
+      <div class="section-header"><div class="section-title">Historial de entregas realizadas</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:20px;">
+        Paquetes que vos marcaste como "Entregado", con la fecha, hora y modalidad de cada entrega.
+      </p>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>Modalidad</th><th>Fecha</th><th>Hora</th></tr></thead>
+          <tbody>
+            {% for envio in mis_entregas %}
+            <tr>
+              <td><strong>{{ envio.codigo }}</strong></td>
+              <td>{{ envio.destinatario.get_full_name|default:envio.destinatario.username }}</td>
+              <td>{{ envio.get_modalidad_display }}</td>
+              <td>{{ envio.fecha_entrega|date:"d/m/Y" }}</td>
+              <td>{{ envio.fecha_entrega|date:"H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">Todavía no registraste ninguna entrega</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -520,14 +549,13 @@
   </div>
 </div>
 
-<!-- MODAL ESCANEO QR (recepción y entrega) -->
+<!-- MODAL ESCANEO QR (recepción de paquetes) -->
 <div class="modal-overlay" id="modal-scan">
   <div class="modal modal-scan">
     <div class="modal-title" id="scan-modal-title">Escanear código</div>
     <div id="scan-reader"></div>
     <div class="scan-status" id="scan-status"></div>
-    <div class="modal-actions" style="justify-content:space-between;">
-      <a href="#" class="scan-fallback" onclick="confirmarManual(); return false;">No puedo escanear, confirmar manualmente</a>
+    <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn btn-outline" onclick="cerrarScan()">Cancelar</button>
     </div>
   </div>
@@ -547,7 +575,7 @@
     const titles = {
       dashboard: 'Dashboard', recepcionar: 'Recepcionar Paquetes',
       pendientes: 'Envíos Pendientes', incidencias: 'Registrar Incidencia',
-      reparto: 'Preparar Reparto'
+      reparto: 'Preparar Reparto', 'mis-entregas': 'Mis Entregas'
     };
     document.getElementById('page-title').textContent = titles[page] || 'Panel';
   }
@@ -557,27 +585,11 @@
   {% endif %}
 
 
-  // --- Escaneo QR (recepción y entrega) ---
+  // --- Escaneo QR (recepción de paquetes) ---
   let html5QrCode = null;
-  let scanMode = null;          // 'recepcion' | 'entrega'
-  let scanCodigoEsperado = null;
-  let scanFormId = null;
 
   function abrirScanRecepcion() {
-    scanMode = 'recepcion';
-    scanCodigoEsperado = null;
-    scanFormId = null;
     document.getElementById('scan-modal-title').textContent = 'Escanear paquete a recepcionar';
-    document.getElementById('scan-status').textContent = '';
-    document.getElementById('modal-scan').classList.add('open');
-    iniciarCamara();
-  }
-
-  function abrirScanEntrega(codigo, formId) {
-    scanMode = 'entrega';
-    scanCodigoEsperado = codigo;
-    scanFormId = formId;
-    document.getElementById('scan-modal-title').textContent = 'Escanear para confirmar entrega: ' + codigo;
     document.getElementById('scan-status').textContent = '';
     document.getElementById('modal-scan').classList.add('open');
     iniciarCamara();
@@ -591,27 +603,15 @@
       onScanExitoso,
       () => {}
     ).catch(() => {
-      document.getElementById('scan-status').textContent = 'No se pudo acceder a la cámara. Usá la confirmación manual.';
+      document.getElementById('scan-status').textContent = 'No se pudo acceder a la cámara. Ingresá el código manualmente.';
     });
   }
 
   function onScanExitoso(decodedText) {
-    const codigo = decodedText.trim();
-    if (scanMode === 'recepcion') {
-      detenerCamara();
-      document.getElementById('input-codigo-recepcion').value = codigo;
-      cerrarScan();
-      document.getElementById('form-recepcionar').submit();
-    } else if (scanMode === 'entrega') {
-      if (codigo === scanCodigoEsperado) {
-        detenerCamara();
-        cerrarScan();
-        const form = document.getElementById(scanFormId);
-        if (form) form.submit();
-      } else {
-        document.getElementById('scan-status').textContent = 'El código escaneado no corresponde a este paquete. Probá de nuevo.';
-      }
-    }
+    detenerCamara();
+    document.getElementById('input-codigo-recepcion').value = decodedText.trim();
+    cerrarScan();
+    document.getElementById('form-recepcionar').submit();
   }
 
   function detenerCamara() {
@@ -629,15 +629,6 @@
   function cerrarScan() {
     detenerCamara();
     document.getElementById('modal-scan').classList.remove('open');
-  }
-
-  function confirmarManual() {
-    detenerCamara();
-    cerrarScan();
-    if (scanMode === 'entrega' && scanFormId) {
-      const form = document.getElementById(scanFormId);
-      if (form) form.submit();
-    }
   }
 </script>
 </body>

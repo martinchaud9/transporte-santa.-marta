@@ -4,6 +4,7 @@ django-ckeditor==6.7.3
 django-js-asset==3.1.2
 pillow==12.2.0
 qrcode==8.2
+reportlab==5.0.1
 requests==2.34.2
 setuptools==82.0.0
 sqlparse==0.5.5

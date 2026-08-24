@@ -8,7 +8,7 @@ from core.models import Envio, Incidencia, Despacho
 from core.zonificacion import geocodificar, calcular_zona, ordenar_ruta
 from core.notificaciones import notificar_cambio_estado, notificar_intento_fallido
 
-def _contexto_dashboard():
+def _contexto_dashboard(request):
     return {
         'envios_transito': Envio.objects.filter(estado='en_transito'),
         'envios_sucursal': Envio.objects.filter(estado='en_sucursal'),
@@ -16,13 +16,14 @@ def _contexto_dashboard():
         'envios_retenidos': Envio.objects.filter(estado='retenido'),
         'despachos_pendientes': Despacho.objects.filter(recepcion_finalizada=False).order_by('fecha_salida'),
         'transito_sin_despacho': Envio.objects.filter(estado='en_transito', despacho__isnull=True),
+        'mis_entregas': Envio.objects.filter(entregado_por=request.user).select_related('destinatario').order_by('-fecha_entrega'),
     }
 
 @login_required
 def dashboard_view(request):
     if request.user.rol != 'empleado':
         return redirect('inicio')
-    return render(request, 'empleado/dashboard.html', _contexto_dashboard())
+    return render(request, 'empleado/dashboard.html', _contexto_dashboard(request))
 
 @login_required
 def recepcionar_envio_view(request):
@@ -62,6 +63,9 @@ def actualizar_estado_view(request):
                     return redirect('empleado_dashboard')
                 envio.estado = nuevo_estado
                 envio.notificado_demora = False
+                if nuevo_estado == 'entregado':
+                    envio.fecha_entrega = timezone.now()
+                    envio.entregado_por = request.user
                 envio.save()
                 notificar_cambio_estado(envio)
                 if nuevo_estado == 'entregado':
@@ -245,7 +249,7 @@ def preparar_reparto_view(request):
         (clave, etiqueta, ordenar_ruta(list(candidatos.filter(zona=clave))))
         for clave, etiqueta in Envio.ZONA_CHOICES
     ]
-    contexto = _contexto_dashboard()
+    contexto = _contexto_dashboard(request)
     contexto.update({
         'reparto_zonas': zonas,
         'reparto_sin_zona': candidatos.filter(zona=''),

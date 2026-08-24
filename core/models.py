@@ -72,6 +72,10 @@ class Envio(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     fecha_recepcion = models.DateTimeField(null=True, blank=True)
+    fecha_entrega = models.DateTimeField(null=True, blank=True)
+    entregado_por = models.ForeignKey(
+        Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='entregas_realizadas'
+    )
     lat = models.FloatField(null=True, blank=True)
     lon = models.FloatField(null=True, blank=True)
     notificado_demora = models.BooleanField(default=False)
@@ -179,6 +183,30 @@ class Reclamo(models.Model):
 
     def __str__(self):
         return f"Reclamo #{self.id} — {self.envio.codigo}"
+
+
+class LogAuditoria(models.Model):
+    """Registro de acciones administrativas sensibles (bajas de cuentas, etc.),
+    para conservar quién hizo qué aunque el registro afectado se desactive."""
+    ACCION_CHOICES = [
+        ('baja_empleado', 'Baja de empleado'),
+    ]
+
+    accion = models.CharField(max_length=30, choices=ACCION_CHOICES)
+    usuario_afectado = models.ForeignKey(
+        Usuario, on_delete=models.PROTECT, related_name='logs_como_afectado'
+    )
+    realizado_por = models.ForeignKey(
+        Usuario, on_delete=models.PROTECT, related_name='logs_como_autor'
+    )
+    detalle = models.TextField(blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_accion_display()} — {self.usuario_afectado} ({self.fecha:%d/%m/%Y %H:%M})"
 
 
 class Vehiculo(models.Model):

@@ -2,16 +2,21 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from core.models import Envio, Reclamo, Pago
+from core.forms import ModificarDatosClienteForm
 from core.notificaciones import notificar_recibo_pago
+
+def _render_dashboard(request, **extra):
+    envios = Envio.objects.filter(destinatario=request.user).order_by('-fecha_registro')
+    contexto = {'envios': envios}
+    contexto.update(extra)
+    return render(request, 'cliente/dashboard.html', contexto)
+
 
 @login_required
 def dashboard_view(request):
     if request.user.rol != 'cliente':
         return redirect('inicio')
-    envios = Envio.objects.filter(destinatario=request.user).order_by('-fecha_registro')
-    return render(request, 'cliente/dashboard.html', {
-        'envios': envios,
-    })
+    return _render_dashboard(request)
 
 @login_required
 def pagar_envio_view(request):
@@ -67,15 +72,38 @@ def generar_reclamo_view(request):
     if request.method == 'POST':
         envio_id = request.POST.get('envio_id')
         tipo = request.POST.get('tipo')
-        descripcion = request.POST.get('descripcion')
+        descripcion = (request.POST.get('descripcion') or '').strip()
+
+        if not descripcion:
+            messages.error(request, 'Debés completar la descripción del reclamo, es un campo obligatorio.')
+            return _render_dashboard(request, mostrar_reclamos=True)
+
         try:
             envio = Envio.objects.get(id=envio_id, destinatario=request.user)
-            Reclamo.objects.create(
-                envio=envio,
-                cliente=request.user,
-                tipo=tipo,
-                descripcion=descripcion,
-            )
         except Envio.DoesNotExist:
-            pass
+            messages.error(request, 'Seleccioná un envío válido para generar el reclamo.')
+            return _render_dashboard(request, mostrar_reclamos=True)
+
+        reclamo = Reclamo.objects.create(
+            envio=envio,
+            cliente=request.user,
+            tipo=tipo,
+            descripcion=descripcion,
+        )
+        messages.success(request, f'✓ Tu reclamo N° {reclamo.id} fue registrado. La sucursal lo va a revisar a la brevedad.')
+    return redirect('cliente_dashboard')
+
+
+@login_required
+def modificar_datos_view(request):
+    if request.user.rol != 'cliente':
+        return redirect('inicio')
+    if request.method == 'POST':
+        form = ModificarDatosClienteForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '✓ Tus datos se actualizaron correctamente.')
+        else:
+            primer_error = next(iter(form.errors.values()))[0]
+            messages.error(request, primer_error)
     return redirect('cliente_dashboard')

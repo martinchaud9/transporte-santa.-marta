@@ -189,6 +189,19 @@
 
   <div class="content">
 
+    {% if messages %}
+    <div style="margin-bottom:20px;">
+      {% for message in messages %}
+      <div style="padding:12px 18px;border-radius:10px;font-size:.88rem;font-weight:600;margin-bottom:8px;
+        {% if message.tags == 'error' %}background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;
+        {% elif message.tags == 'success' %}background:#dcfce7;border:1.5px solid #86efac;color:#15803d;
+        {% else %}background:#dbeafe;border:1.5px solid #93c5fd;color:#1d4ed8;{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- DASHBOARD -->
     <div id="page-dashboard">
       <div class="stats-grid">
@@ -289,7 +302,7 @@
       </div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Nombre</th><th>DNI</th><th>Correo</th><th>Teléfono</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>DNI</th><th>Correo</th><th>Teléfono</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             {% for empleado in empleados %}
             <tr>
@@ -298,9 +311,19 @@
               <td>{{ empleado.email|default:"—" }}</td>
               <td>{{ empleado.telefono|default:"—" }}</td>
               <td><span class="badge {% if empleado.is_active %}badge-sucursal{% else %}badge-pendiente{% endif %}">{% if empleado.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
+              <td>
+                {% if empleado.is_active %}
+                <form method="POST" action="{% url 'eliminar_empleado' empleado.id %}" onsubmit="return confirm('¿Está seguro que desea eliminar este empleado?');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn" style="color:#dc2626;border-color:#fecaca;">Eliminar</button>
+                </form>
+                {% else %}
+                <span style="font-size:.75rem;color:var(--gray);">Deshabilitado</span>
+                {% endif %}
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay empleados registrados</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay empleados registrados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -314,14 +337,17 @@
         <button class="btn btn-outline" onclick="showPage('empleados')">← Volver</button>
       </div>
       <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        {% if error_empleado %}
+        <div style="background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;border-radius:9px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:20px;">{{ error_empleado }}</div>
+        {% endif %}
         <form method="POST" action="{% url 'registro_empleado' %}">
           {% csrf_token %}
           <div class="field-group">
-            <div class="field"><label>Nombre completo *</label><input type="text" name="first_name" placeholder="Ej: Juan Pérez"/></div>
-            <div class="field"><label>DNI *</label><input type="text" name="dni" placeholder="Ej: 30.123.456"/></div>
-            <div class="field"><label>Usuario *</label><input type="text" name="username" placeholder="juanperez"/></div>
-            <div class="field"><label>Correo electrónico *</label><input type="email" name="email" placeholder="empleado@santamarta.com"/></div>
-            <div class="field"><label>Teléfono</label><input type="tel" name="telefono" placeholder="+54 385 000 0000"/></div>
+            <div class="field"><label>Nombre completo *</label><input type="text" name="first_name" value="{{ datos_empleado.first_name|default:'' }}" placeholder="Ej: Juan Pérez"/></div>
+            <div class="field"><label>DNI *</label><input type="text" name="dni" value="{{ datos_empleado.dni|default:'' }}" placeholder="Ej: 30.123.456"/></div>
+            <div class="field"><label>Usuario *</label><input type="text" name="username" value="{{ datos_empleado.username|default:'' }}" placeholder="juanperez"/></div>
+            <div class="field"><label>Correo electrónico *</label><input type="email" name="email" value="{{ datos_empleado.email|default:'' }}" placeholder="empleado@santamarta.com"/></div>
+            <div class="field"><label>Teléfono</label><input type="tel" name="telefono" value="{{ datos_empleado.telefono|default:'' }}" placeholder="+54 385 000 0000"/></div>
             <div class="field"><label>Contraseña inicial *</label><input type="password" name="password1" placeholder="Mínimo 8 caracteres"/></div>
             <div class="field"><label>Repetir contraseña *</label><input type="password" name="password2" placeholder="Repetí la contraseña"/></div>
           </div>
@@ -376,27 +402,30 @@
         <button class="btn btn-outline" onclick="showPage('vehiculos')">← Volver</button>
       </div>
       <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        {% if error_vehiculo %}
+        <div style="background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;border-radius:9px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:20px;">{{ error_vehiculo }}</div>
+        {% endif %}
         <form method="POST" action="{% url 'registro_vehiculo' %}">
           {% csrf_token %}
           <div class="field-group">
-            <div class="field"><label>Patente *</label><input type="text" name="patente" placeholder="Ej: AB123CD"/></div>
+            <div class="field"><label>Patente *</label><input type="text" name="patente" value="{{ datos_vehiculo.patente|default:'' }}" placeholder="Ej: AB123CD"/></div>
             <div class="field">
               <label>Tipo de vehículo *</label>
               <select name="tipo">
-                <option value="moto">Moto</option>
-                <option value="auto">Auto</option>
-                <option value="camioneta">Camioneta</option>
-                <option value="furgon">Furgón</option>
+                <option value="moto" {% if datos_vehiculo.tipo == 'moto' %}selected{% endif %}>Moto</option>
+                <option value="auto" {% if datos_vehiculo.tipo == 'auto' %}selected{% endif %}>Auto</option>
+                <option value="camioneta" {% if datos_vehiculo.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
+                <option value="furgon" {% if datos_vehiculo.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
               </select>
             </div>
-            <div class="field"><label>Marca</label><input type="text" name="marca" placeholder="Ej: Renault"/></div>
-            <div class="field"><label>Modelo</label><input type="text" name="modelo" placeholder="Ej: Kangoo"/></div>
+            <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ datos_vehiculo.marca|default:'' }}" placeholder="Ej: Renault"/></div>
+            <div class="field"><label>Modelo</label><input type="text" name="modelo" value="{{ datos_vehiculo.modelo|default:'' }}" placeholder="Ej: Kangoo"/></div>
             <div class="field">
               <label>Empleado asignado</label>
               <select name="empleado">
                 <option value="">Sin asignar</option>
                 {% for empleado in empleados %}
-                <option value="{{ empleado.id }}">{{ empleado.get_full_name|default:empleado.username }}</option>
+                <option value="{{ empleado.id }}" {% if datos_vehiculo.empleado == empleado.id|stringformat:'s' %}selected{% endif %}>{{ empleado.get_full_name|default:empleado.username }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -651,7 +680,12 @@
       </div>
 
       {% if reporte %}
-      <div class="section-header"><div class="section-title">Resultado — {% if reporte.tipo == 'mensual' %}{{ reporte.mes_nombre }} {{ reporte.anio }}{% else %}Últimos 7 días{% endif %}</div></div>
+      <div class="section-header">
+        <div class="section-title">Resultado — {% if reporte.tipo == 'mensual' %}{{ reporte.mes_nombre }} {{ reporte.anio }}{% else %}Últimos 7 días{% endif %}</div>
+        <a href="{% url 'generar_reporte_pdf' %}?tipo={{ reporte.tipo }}&anio={{ reporte.anio }}&mes={{ reporte.mes }}" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Descargar PDF
+        </a>
+      </div>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Envíos registrados</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
@@ -744,6 +778,9 @@
         <button class="btn btn-outline" onclick="showPage('vehiculos')">← Volver</button>
       </div>
       <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        {% if error_vehiculo_editar %}
+        <div style="background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;border-radius:9px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:20px;">{{ error_vehiculo_editar }}</div>
+        {% endif %}
         <form method="POST" action="{% url 'editar_vehiculo' vehiculo_editar.id %}">
           {% csrf_token %}
           <div class="field-group">
@@ -751,20 +788,20 @@
             <div class="field">
               <label>Tipo de vehículo *</label>
               <select name="tipo">
-                <option value="moto" {% if vehiculo_editar.tipo == 'moto' %}selected{% endif %}>Moto</option>
-                <option value="auto" {% if vehiculo_editar.tipo == 'auto' %}selected{% endif %}>Auto</option>
-                <option value="camioneta" {% if vehiculo_editar.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
-                <option value="furgon" {% if vehiculo_editar.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
+                <option value="moto" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'moto' %}selected{% endif %}>Moto</option>
+                <option value="auto" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'auto' %}selected{% endif %}>Auto</option>
+                <option value="camioneta" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
+                <option value="furgon" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
               </select>
             </div>
-            <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ vehiculo_editar.marca }}"/></div>
-            <div class="field"><label>Modelo</label><input type="text" name="modelo" value="{{ vehiculo_editar.modelo }}"/></div>
+            <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ datos_vehiculo_editar.marca|default:vehiculo_editar.marca }}"/></div>
+            <div class="field"><label>Modelo</label><input type="text" name="modelo" value="{{ datos_vehiculo_editar.modelo|default:vehiculo_editar.modelo }}"/></div>
             <div class="field">
               <label>Empleado asignado</label>
               <select name="empleado">
                 <option value="">Sin asignar</option>
                 {% for empleado in empleados %}
-                <option value="{{ empleado.id }}" {% if vehiculo_editar.empleado_id == empleado.id %}selected{% endif %}>{{ empleado.get_full_name|default:empleado.username }}</option>
+                <option value="{{ empleado.id }}" {% if datos_vehiculo_editar %}{% if datos_vehiculo_editar.empleado == empleado.id|stringformat:'s' %}selected{% endif %}{% elif vehiculo_editar.empleado_id == empleado.id %}selected{% endif %}>{{ empleado.get_full_name|default:empleado.username }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -825,6 +862,8 @@
             <div><strong>Registro:</strong> {{ envio_detalle.fecha_registro|date:"d/m/Y H:i" }}</div>
             <div><strong>Última actualización:</strong> {{ envio_detalle.fecha_actualizacion|date:"d/m/Y H:i" }}</div>
             {% if envio_detalle.fecha_recepcion %}<div><strong>Recepción en sucursal:</strong> {{ envio_detalle.fecha_recepcion|date:"d/m/Y H:i" }}</div>{% endif %}
+            {% if envio_detalle.fecha_entrega %}<div><strong>Entrega:</strong> {{ envio_detalle.fecha_entrega|date:"d/m/Y H:i" }}</div>{% endif %}
+            {% if envio_detalle.entregado_por %}<div><strong>Entregado por:</strong> {{ envio_detalle.entregado_por.get_full_name|default:envio_detalle.entregado_por.username }}</div>{% endif %}
           </div>
         </div>
       </div>
@@ -914,6 +953,12 @@
   {% endif %}
   {% if mostrar_gestionar_reclamo %}
   showPage('gestionar-reclamo-{{ reclamo_gestionar.id }}');
+  {% endif %}
+  {% if mostrar_nuevo_empleado %}
+  showPage('nuevo-empleado');
+  {% endif %}
+  {% if mostrar_nuevo_vehiculo %}
+  showPage('nuevo-vehiculo');
   {% endif %}
 </script>
 </body>
