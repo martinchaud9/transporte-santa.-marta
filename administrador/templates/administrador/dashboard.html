@@ -87,6 +87,7 @@
     .badge-reparto{background:#ffedd5;color:#c2410c} .badge-entregado{background:#f0fdf4;color:#16a34a}
     .badge-pendiente{background:#fef9c3;color:#a16207} .badge-reclamo{background:#fee2e2;color:#dc2626}
     .badge-proceso{background:#dbeafe;color:#1d4ed8}
+    .badge-retenido{background:#fed7aa;color:#9a3412}
     .action-btn { padding: 5px 10px; border-radius: 6px; font-size: .75rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--gray-light); background: white; color: var(--blue); transition: all .15s; }
     .action-btn:hover { background: var(--off-white); border-color: var(--blue-light); }
     .side-panel { display: flex; flex-direction: column; gap: 18px; }
@@ -150,6 +151,9 @@
   </a>
   <a href="#" class="nav-item" onclick="showPage('incidencias')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>Incidencias
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('auditoria')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>Auditoría
   </a>
   <a href="#" class="nav-item" onclick="showPage('reportes')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>Reportes
@@ -279,12 +283,34 @@
               <div class="reclamo-item">
                 <div class="reclamo-top">
                   <span class="reclamo-codigo">{{ reclamo.envio.codigo }}</span>
-                  <span class="badge {% if reclamo.estado == 'nuevo' %}badge-reclamo{% else %}badge-proceso{% endif %}">{{ reclamo.get_estado_display }}</span>
+                  <span>
+                    <span class="badge {% if reclamo.estado == 'nuevo' %}badge-reclamo{% else %}badge-proceso{% endif %}">{{ reclamo.get_estado_display }}</span>
+                    {% if reclamo.esta_demorado %}<span class="badge badge-reclamo">Demorado</span>{% endif %}
+                  </span>
                 </div>
                 <div class="reclamo-desc">{{ reclamo.descripcion|truncatechars:60 }}</div>
               </div>
               {% empty %}
               <div class="reclamo-desc" style="color:var(--gray);">No hay reclamos pendientes</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="panel-card-header">Solicitudes de cancelación pendientes</div>
+            <div class="panel-card-body">
+              {% for solicitud in solicitudes_cancelacion_pendientes %}
+              <div class="reclamo-item">
+                <div class="reclamo-top">
+                  <span class="reclamo-codigo">{{ solicitud.envio.codigo }}</span>
+                  <span class="badge badge-reclamo">Pendiente</span>
+                </div>
+                <div class="reclamo-desc">{{ solicitud.motivo|default:"Sin motivo especificado"|truncatechars:60 }}</div>
+                <div style="margin-top:8px;">
+                  <a href="{% url 'detalle_envio' solicitud.envio.id %}" class="btn btn-outline" style="font-size:.75rem;padding:5px 10px;">Ver y resolver</a>
+                </div>
+              </div>
+              {% empty %}
+              <div class="reclamo-desc" style="color:var(--gray);">No hay solicitudes de cancelación pendientes</div>
               {% endfor %}
             </div>
           </div>
@@ -461,6 +487,8 @@
                   {% elif envio.estado == 'en_sucursal' %}badge-sucursal
                   {% elif envio.estado == 'entregado' %}badge-entregado
                   {% elif envio.estado == 'en_transito' %}badge-transit
+                  {% elif envio.estado == 'retenido' %}badge-retenido
+                  {% elif envio.estado == 'cancelado' or envio.estado == 'devuelto' or envio.estado == 'extraviado' %}badge-reclamo
                   {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
               </td>
               <td><a href="{% url 'detalle_envio' envio.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Ver</a></td>
@@ -483,9 +511,14 @@
         <div style="padding:16px 20px;border-bottom:1px solid var(--gray-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div style="font-size:1rem;font-weight:700;color:var(--blue-dark);">🚚 Camión #{{ despacho.id }}</div>
-            <div style="font-size:.8rem;color:var(--gray);">Salida: {{ despacho.fecha_salida|date:"d/m/Y H:i" }} — {{ despacho.total_envios }} paquetes</div>
+            <div style="font-size:.8rem;color:var(--gray);">
+              {% if despacho.despachado %}Salida: {{ despacho.fecha_salida|date:"d/m/Y H:i" }}{% else %}Cargando desde: {{ despacho.fecha_creacion|date:"d/m/Y H:i" }}{% endif %}
+              — {{ despacho.total_envios }} paquete(s), {{ despacho.peso_total }}/{{ despacho.CAPACIDAD_MAX_PESO_KG }} kg
+            </div>
           </div>
-          {% if despacho.recepcion_finalizada %}
+          {% if not despacho.despachado %}
+          <span class="badge badge-pendiente">Cargando en Casa Central</span>
+          {% elif despacho.recepcion_finalizada %}
           <span class="badge badge-entregado">Recepción finalizada el {{ despacho.fecha_recepcion_finalizada|date:"d/m/Y H:i" }}</span>
           {% else %}
           <span class="badge badge-pendiente">Recepción en curso — {{ despacho.envios_recibidos }}/{{ despacho.total_envios }}</span>
@@ -505,7 +538,8 @@
                   {% elif envio.estado == 'en_sucursal' %}badge-sucursal
                   {% elif envio.estado == 'entregado' %}badge-entregado
                   {% elif envio.estado == 'en_transito' %}badge-transit
-                  {% elif envio.estado == 'extraviado' %}badge-reclamo
+                  {% elif envio.estado == 'retenido' %}badge-retenido
+                  {% elif envio.estado == 'cancelado' or envio.estado == 'devuelto' or envio.estado == 'extraviado' %}badge-reclamo
                   {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
               </td>
             </tr>
@@ -563,6 +597,7 @@
                   {% if reclamo.estado == 'nuevo' %}badge-reclamo
                   {% elif reclamo.estado == 'en_proceso' %}badge-proceso
                   {% else %}badge-entregado{% endif %}">{{ reclamo.get_estado_display }}</span>
+                {% if reclamo.esta_demorado %}<span class="badge badge-reclamo" style="margin-left:4px;">Demorado</span>{% endif %}
               </td>
               <td><a href="{% url 'gestionar_reclamo' reclamo.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Gestionar</a></td>
             </tr>
@@ -600,6 +635,42 @@
             </tr>
             {% empty %}
             <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay incidencias registradas</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AUDITORIA -->
+    <div id="page-auditoria" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Auditoría</div>
+        <span style="font-size:.82rem;color:var(--gray);">Registro de acciones sensibles: quién las hizo, sobre qué y cuándo</span>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Acción</th><th>Afecta a</th><th>Detalle</th><th>Realizado por</th><th>Fecha</th></tr></thead>
+          <tbody>
+            {% for log in logs_auditoria %}
+            <tr>
+              <td>
+                <span class="badge
+                  {% if log.accion == 'baja_empleado' %}badge-pendiente
+                  {% elif log.accion == 'extravio_envio' %}badge-reclamo
+                  {% else %}badge-proceso{% endif %}">{{ log.get_accion_display }}</span>
+              </td>
+              <td>
+                {% if log.envio_afectado %}{{ log.envio_afectado.codigo }}
+                {% elif log.pago_afectado %}Pago #{{ log.pago_afectado.id }} ({{ log.pago_afectado.envio.codigo }})
+                {% elif log.usuario_afectado %}{{ log.usuario_afectado.get_full_name|default:log.usuario_afectado.username }}
+                {% else %}—{% endif %}
+              </td>
+              <td style="max-width:320px;">{{ log.detalle }}</td>
+              <td>{{ log.realizado_por.get_full_name|default:log.realizado_por.username }}</td>
+              <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">Todavía no hay acciones registradas en la auditoría</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -719,7 +790,7 @@
       </div>
       <div class="table-card" style="margin-bottom:24px;">
         <table>
-          <thead><tr><th>Envío</th><th>Cliente</th><th>Monto</th><th>Medio</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Envío</th><th>Cliente</th><th>Monto</th><th>Medio</th><th>Fecha</th><th>Comprobante</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             {% for pago in pagos %}
             <tr>
@@ -729,12 +800,29 @@
               <td>{{ pago.get_medio_pago_display }}</td>
               <td>{{ pago.fecha|date:"d/m/Y" }}</td>
               <td>
-                {% if pago.anulado %}<span class="badge badge-pendiente">Anulado</span>
+                {% if pago.comprobante_foto %}
+                <a href="{{ pago.comprobante_foto.url }}" target="_blank" class="action-btn" style="text-decoration:none;display:inline-block;">Ver foto</a>
+                {% else %}
+                <span style="font-size:.75rem;color:var(--gray);">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if pago.anulado %}<span class="badge badge-pendiente">{% if pago.verificado %}Anulado{% else %}Rechazado{% endif %}</span>
+                {% elif not pago.verificado %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Pendiente de verificación</span>
                 {% elif pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>
                 {% else %}<span class="badge badge-sucursal">Pagado</span>{% endif %}
               </td>
-              <td>
-                {% if not pago.anulado and pago.envio.estado != 'entregado' %}
+              <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                {% if not pago.anulado and not pago.verificado %}
+                <form method="POST" action="{% url 'confirmar_pago' pago.id %}" onsubmit="return confirm('¿Confirmás que la transferencia llegó a la cuenta de Santa Marta?');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn" style="color:#15803d;border-color:#86efac;">Confirmar</button>
+                </form>
+                <form method="POST" action="{% url 'anular_pago' pago.id %}" onsubmit="return confirm('¿Rechazar este comprobante? El pago quedará sin efecto.');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn" style="color:#dc2626;border-color:#fecaca;">Rechazar</button>
+                </form>
+                {% elif not pago.anulado and pago.envio.estado != 'entregado' %}
                 <form method="POST" action="{% url 'anular_pago' pago.id %}" onsubmit="return confirm('¿Anular este pago?');">
                   {% csrf_token %}
                   <button type="submit" class="action-btn">Anular</button>
@@ -745,7 +833,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" style="text-align:center;color:var(--gray);padding:20px;">No hay pagos registrados</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--gray);padding:20px;">No hay pagos registrados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -837,17 +925,41 @@
               {% elif envio_detalle.estado == 'en_sucursal' %}badge-sucursal
               {% elif envio_detalle.estado == 'entregado' %}badge-entregado
               {% elif envio_detalle.estado == 'en_transito' %}badge-transit
+              {% elif envio_detalle.estado == 'retenido' %}badge-retenido
+              {% elif envio_detalle.estado == 'cancelado' or envio_detalle.estado == 'devuelto' or envio_detalle.estado == 'extraviado' %}badge-reclamo
               {% else %}badge-pendiente{% endif %}">{{ envio_detalle.get_estado_display }}</span>
               {% if envio_detalle.esta_demorado %}<span class="badge badge-reclamo" style="margin-left:6px;">Demorado</span>{% endif %}
             </div>
             <div><strong>Modalidad:</strong> {{ envio_detalle.get_modalidad_display }}</div>
             {% if envio_detalle.despacho %}<div><strong>Camión:</strong> #{{ envio_detalle.despacho.id }} (salió el {{ envio_detalle.despacho.fecha_salida|date:"d/m/Y" }})</div>{% endif %}
             {% if envio_detalle.intentos_entrega > 0 %}<div><strong>Intentos de entrega fallidos:</strong> {{ envio_detalle.intentos_entrega }}</div>{% endif %}
+            {% if envio_detalle.dias_retenido is not None %}<div><strong>Retenido hace:</strong> {{ envio_detalle.dias_retenido }} día{{ envio_detalle.dias_retenido|pluralize }} (se devuelve solo a los {{ envio_detalle.UMBRAL_RETENCION_DIAS }})</div>{% endif %}
             <div><strong>Contenido:</strong> {{ envio_detalle.contenido }}</div>
+            <div><strong>Peso:</strong> {{ envio_detalle.peso }} kg</div>
             <div><strong>Precio:</strong> ${{ envio_detalle.precio }}</div>
             {% if envio_detalle.direccion_entrega %}<div><strong>Dirección:</strong> {{ envio_detalle.direccion_entrega }}</div>{% endif %}
             {% if envio_detalle.zona %}<div><strong>Zona:</strong> {{ envio_detalle.get_zona_display }}</div>{% endif %}
           </div>
+          {% if solicitud_cancelacion_pendiente %}
+          <div style="margin-top:18px;background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;color:#a16207;font-size:.85rem;margin-bottom:4px;">⏳ El cliente pidió cancelar este envío</div>
+            <div style="font-size:.8rem;color:var(--gray);margin-bottom:12px;">{{ solicitud_cancelacion_pendiente.motivo|default:"Sin motivo especificado" }}</div>
+            <form method="POST" action="{% url 'resolver_solicitud_cancelacion' solicitud_cancelacion_pendiente.id %}" onsubmit="return confirm('¿Aprobar la cancelación de este envío? El cliente va a recibir un email avisándole.');">
+              {% csrf_token %}
+              <button type="submit" class="btn" style="width:100%;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Aprobar cancelación</button>
+            </form>
+          </div>
+          {% elif envio_detalle.estado == 'pendiente' %}
+          <form method="POST" action="{% url 'cancelar_envio' envio_detalle.id %}" onsubmit="return confirm('¿Cancelar este envío? El cliente va a recibir un email avisándole.');" style="margin-top:18px;">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Cancelar envío</button>
+          </form>
+          {% elif envio_detalle.estado == 'retenido' %}
+          <form method="POST" action="{% url 'marcar_devuelto' envio_detalle.id %}" onsubmit="return confirm('¿Marcar este envío como devuelto a Buenos Aires? El cliente va a recibir un email avisándole.');" style="margin-top:18px;">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Marcar como devuelto</button>
+          </form>
+          {% endif %}
         </div>
         <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
           <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:16px;">Destinatario</h3>
@@ -873,14 +985,21 @@
         <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:12px;">Pagos registrados</h3>
         <div class="table-card">
           <table>
-            <thead><tr><th>Monto</th><th>Medio</th><th>Fecha</th><th>Tipo</th></tr></thead>
+            <thead><tr><th>Monto</th><th>Medio</th><th>Fecha</th><th>Comprobante</th><th>Estado</th></tr></thead>
             <tbody>
               {% for pago in envio_pagos %}
               <tr>
                 <td>${{ pago.monto }}</td>
                 <td>{{ pago.get_medio_pago_display }}</td>
                 <td>{{ pago.fecha|date:"d/m/Y" }}</td>
-                <td>{% if pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>{% else %}<span class="badge badge-sucursal">Completo</span>{% endif %}</td>
+                <td>
+                  {% if pago.comprobante_foto %}<a href="{{ pago.comprobante_foto.url }}" target="_blank">Ver foto</a>{% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if not pago.verificado %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Pendiente de verificación</span>
+                  {% elif pago.es_parcial %}<span class="badge badge-proceso">Parcial</span>
+                  {% else %}<span class="badge badge-sucursal">Completo</span>{% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>
@@ -928,7 +1047,7 @@
       dashboard:'Dashboard', envios:'Gestión de Envíos', clientes:'Clientes',
       pagos:'Pagos', empleados:'Empleados', 'nuevo-empleado':'Registrar Empleado',
       vehiculos:'Vehículos', 'nuevo-vehiculo':'Registrar Vehículo',
-      reclamos:'Reclamos', reportes:'Reportes', camiones:'Camiones', incidencias:'Incidencias'
+      reclamos:'Reclamos', reportes:'Reportes', camiones:'Camiones', incidencias:'Incidencias', auditoria:'Auditoría'
     };
     let titulo;
     if (page.startsWith('editar-vehiculo-')) titulo = 'Editar Vehículo';

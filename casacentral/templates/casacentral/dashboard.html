@@ -152,6 +152,19 @@
 
   <div class="content">
 
+    {% if messages %}
+    <div style="margin-bottom:20px;">
+      {% for message in messages %}
+      <div style="padding:12px 18px;border-radius:10px;font-size:.88rem;font-weight:600;margin-bottom:8px;
+        {% if message.tags == 'error' %}background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;
+        {% elif message.tags == 'success' %}background:#dcfce7;border:1.5px solid #86efac;color:#15803d;
+        {% else %}background:#dbeafe;border:1.5px solid #93c5fd;color:#1d4ed8;{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- DASHBOARD -->
     <div id="page-dashboard">
       <div class="stats-grid">
@@ -172,45 +185,67 @@
         </div>
       </div>
 
-      {% if envios_pendientes.count > 0 %}
-      <div class="despachar-card">
-        <div class="despachar-info">
-          <div class="despachar-title">¿Listo para despachar el camión?</div>
-          <div class="despachar-sub">{{ envios_pendientes.count }} envíos pendientes serán marcados como "En tránsito"</div>
-        </div>
-        <form method="POST" action="{% url 'casacentral_despachar' %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-despachar">
-            <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
-            Despachar camión →
-          </button>
-        </form>
-      </div>
-      {% endif %}
-
       <div class="section-header">
-        <div class="section-title">Envíos pendientes de despacho</div>
+        <div class="section-title">Camiones cargando en Casa Central</div>
         <button class="btn btn-primary" onclick="showPage('nuevo-envio')">+ Nuevo envío</button>
       </div>
-      <div class="table-card">
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:20px;">
+        Cada paquete nuevo se asigna solo al camión que se está cargando. Cuando un camión llega a
+        200 kg, el próximo paquete abre uno nuevo automáticamente, aunque este todavía no haya salido.
+      </p>
+
+      {% for despacho in despachos_abiertos %}
+      <div class="table-card" style="margin-bottom:20px;">
+        <div class="table-card-header">
+          <div>
+            <span class="table-card-title">🚚 Camión #{{ despacho.id }}</span>
+            <div style="font-size:.78rem;color:var(--gray);margin-top:4px;">
+              {{ despacho.total_envios }} paquete(s) — {{ despacho.peso_total }}/{{ despacho.CAPACIDAD_MAX_PESO_KG }} kg
+              {% if despacho.peso_total >= despacho.CAPACIDAD_MAX_PESO_KG %}<span class="badge badge-pendiente" style="margin-left:6px;">Lleno</span>{% endif %}
+            </div>
+          </div>
+          {% if despacho.total_envios > 0 %}
+          <form method="POST" action="{% url 'casacentral_despachar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="despacho_id" value="{{ despacho.id }}"/>
+            <button type="submit" class="btn btn-despachar">
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+              Despachar este camión →
+            </button>
+          </form>
+          {% else %}
+          <span style="font-size:.78rem;color:var(--gray);font-style:italic;">Sin paquetes para despachar</span>
+          {% endif %}
+        </div>
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Etiqueta</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Peso</th><th>Etiqueta</th></tr></thead>
           <tbody>
-            {% for envio in envios_pendientes %}
+            {% for envio in despacho.envios_a_despachar %}
             <tr>
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-pendiente">Pendiente</span></td>
+              <td>{{ envio.peso }} kg</td>
               <td><button class="btn btn-etiqueta" onclick="verEtiqueta('{{ envio.codigo }}')">Ver QR</button></td>
             </tr>
-            {% empty %}
-            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos pendientes</td></tr>
             {% endfor %}
           </tbody>
         </table>
+        {% if despacho.envios_cancelados_a_retirar %}
+        <div style="padding:12px 20px;background:#fef2f2;border-top:1px solid #fecaca;">
+          <div style="font-size:.78rem;font-weight:700;color:#991b1b;margin-bottom:6px;">⚠️ Retirar del camión — la cancelación ya fue aprobada, no se despachan:</div>
+          {% for envio in despacho.envios_cancelados_a_retirar %}
+          <div style="font-size:.78rem;color:#991b1b;">• {{ envio.codigo }} — {{ envio.destinatario.get_full_name }} ({{ envio.peso }} kg)</div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
+      {% empty %}
+      <div class="table-card">
+        <div style="text-align:center;color:var(--gray);padding:24px;">No hay envíos pendientes de despacho</div>
+      </div>
+      {% endfor %}
     </div>
 
     <!-- NUEVO ENVIO -->
@@ -230,6 +265,7 @@
             <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" id="input-telefono" placeholder="+54 385 000 0000" required/></div>
             <div class="field"><label>Email del destinatario</label><input type="email" name="email" id="input-email" placeholder="destinatario@correo.com"/></div>
             <div class="field"><label>Contenido del paquete *</label><input type="text" name="contenido" placeholder="Ej: Ropa, electrónica..." required/></div>
+            <div class="field"><label>Peso (kg) *</label><input type="number" name="peso" placeholder="Ej: 2.5" step="0.01" min="0.01" max="200" required/></div>
             <div class="field"><label>Precio del servicio *</label><input type="number" name="precio" placeholder="0.00" step="0.01" required/></div>
             <div class="field">
               <label>Modalidad de entrega *</label>
@@ -251,8 +287,8 @@
         <div>
           <div class="form-card">
             <div class="form-card-title">Información importante</div>
-            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Los envíos registrados quedan en estado <strong>Pendiente</strong> hasta que se despache el camión.</p>
-            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Al despachar el camión, todos los envíos pendientes pasan a estado <strong>En tránsito</strong> y son visibles para la sucursal de Santiago del Estero.</p>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Cada envío se asigna automáticamente al camión que se está cargando. Cuando ese camión llega a 200 kg, el próximo envío abre uno nuevo solo.</p>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Los envíos quedan en estado <strong>Pendiente</strong> hasta que se despache el camión al que pertenecen; ahí pasan a <strong>En tránsito</strong> y son visibles para la sucursal de Santiago del Estero.</p>
             <p style="font-size:.85rem;color:var(--gray);line-height:1.6;">Si el destinatario ya existe en el sistema, sus datos se reutilizan automáticamente.</p>
           </div>
         </div>

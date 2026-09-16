@@ -192,7 +192,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% elif envio.tiene_pago_pendiente_verificacion %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Verificando pago</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}">
                   {% csrf_token %}
@@ -228,7 +228,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% elif envio.tiene_pago_pendiente_verificacion %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Verificando pago</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-dash-rep-{{ envio.id }}">
                   {% csrf_token %}
@@ -378,7 +378,7 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td><span class="badge badge-sucursal">En sucursal</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% elif envio.tiene_pago_pendiente_verificacion %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Verificando pago</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td>
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-suc-{{ envio.id }}">
                   {% csrf_token %}
@@ -395,7 +395,7 @@
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
-              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td><span class="badge badge-reparto">En reparto</span> {% if envio.esta_demorado %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Demorado</span>{% endif %} {% if envio.intentos_entrega > 0 %}<span class="badge" style="background:#fef9c3;color:#a16207;">{{ envio.intentos_entrega }}° intento</span>{% endif %} {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% elif envio.tiene_pago_pendiente_verificacion %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Verificando pago</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-pend-rep-{{ envio.id }}">
                   {% csrf_token %}
@@ -428,7 +428,7 @@
               <td><strong>{{ envio.codigo }}</strong></td>
               <td>{{ envio.destinatario.get_full_name }}</td>
               <td>{{ envio.destinatario.telefono }}</td>
-              <td><span class="badge" style="background:#fee2e2;color:#dc2626;">{{ envio.intentos_entrega }} intentos fallidos</span> {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
+              <td><span class="badge" style="background:#fee2e2;color:#dc2626;">{{ envio.intentos_entrega }} intentos fallidos</span> {% if envio.esta_pagado %}<span class="badge" style="background:#dcfce7;color:#16a34a;">Pagado</span>{% elif envio.tiene_pago_pendiente_verificacion %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Verificando pago</span>{% else %}<span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>{% endif %} {% if envio.tiene_danio_reportado %}<span class="badge" style="background:#ffedd5;color:#c2410c;">⚠ Dañado</span>{% endif %}</td>
               <td>
                 <form method="POST" action="{% url 'empleado_estado' %}" id="form-entregar-ret-{{ envio.id }}">
                   {% csrf_token %}

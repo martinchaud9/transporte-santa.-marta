@@ -108,6 +108,9 @@
     .badge-en_reparto { background: #ffedd5; color: #c2410c; }
     .badge-entregado { background: #dcfce7; color: #15803d; }
     .badge-cancelado { background: #fee2e2; color: #dc2626; }
+    .badge-retenido { background: #fed7aa; color: #9a3412; }
+    .badge-devuelto { background: #e5e7eb; color: #374151; }
+    .badge-extraviado { background: #fecaca; color: #991b1b; }
 
     /* BUTTONS */
     .btn { padding: 8px 16px; border-radius: 9px; font-family: 'Barlow', sans-serif; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .2s; border: none; display: inline-flex; align-items: center; gap: 6px; }
@@ -239,9 +242,18 @@
           <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
           {% if envio.esta_pagado %}
           <span class="badge" style="background:#dcfce7;color:#15803d;">Pagado</span>
+          {% elif envio.tiene_pago_pendiente_verificacion %}
+          <span class="badge" style="background:#fef9c3;color:#a16207;">⏳ En verificación</span>
           {% else %}
           <span class="badge" style="background:#fee2e2;color:#dc2626;">Debe ${{ envio.saldo_pendiente }}</span>
           <button class="btn btn-primary" style="font-size:.75rem;padding:5px 10px;" onclick="abrirPago('{{ envio.id }}', '{{ envio.codigo }}', '{{ envio.saldo_pendiente }}')">Pagar ahora</button>
+          {% endif %}
+          {% if envio.estado == 'pendiente' %}
+            {% if envio.tiene_solicitud_cancelacion_pendiente %}
+            <span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Cancelación en trámite</span>
+            {% else %}
+            <button class="btn btn-outline" style="font-size:.75rem;padding:5px 10px;" onclick="abrirCancelacion('{{ envio.id }}', '{{ envio.codigo }}')">Solicitar cancelación</button>
+            {% endif %}
           {% endif %}
           <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}')">Generar reclamo</button>
         </div>
@@ -402,12 +414,32 @@
   </div>
 </div>
 
+<!-- MODAL SOLICITAR CANCELACION -->
+<div id="modal-cancelacion" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:28px;width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--blue-dark);margin-bottom:6px;">Solicitar cancelación</div>
+    <div style="font-size:.85rem;color:var(--gray);margin-bottom:20px;">Envío <strong id="cancelacion-envio-codigo"></strong> — un administrador va a revisar el pedido antes de cancelarlo.</div>
+    <form method="POST" action="{% url 'cliente_solicitar_cancelacion' %}">
+      {% csrf_token %}
+      <input type="hidden" name="envio_id" id="cancelacion-envio-id"/>
+      <div class="field">
+        <label>Motivo (opcional)</label>
+        <textarea name="motivo" placeholder="Contanos por qué querés cancelar este envío..."></textarea>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-outline" onclick="cerrarCancelacion()">Volver</button>
+        <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- MODAL PAGO -->
 <div id="modal-pago" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:16px;padding:28px;width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--blue-dark);margin-bottom:6px;">Pagar envío</div>
     <div style="font-size:.85rem;color:var(--gray);margin-bottom:20px;">Envío <strong id="pago-envio-codigo"></strong> — Total a pagar: <strong id="pago-envio-monto" style="color:var(--blue-dark);"></strong></div>
-    <form method="POST" action="{% url 'cliente_pagar' %}">
+    <form method="POST" action="{% url 'cliente_pagar' %}" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
       {% csrf_token %}
       <input type="hidden" name="envio_id" id="pago-envio-id"/>
       <div class="field">
@@ -451,6 +483,12 @@
           <label>Número de comprobante de la transferencia *</label>
           <input type="text" name="comprobante" placeholder="Ej: 000123456789"/>
         </div>
+        <div class="field">
+          <label>Foto del comprobante *</label>
+          <input type="file" name="comprobante_foto" accept="image/*"/>
+          <div style="font-size:.75rem;color:var(--gray);margin-top:6px;">Subí una foto o captura de pantalla de la transferencia. Formatos de imagen, hasta 5 MB.</div>
+        </div>
+        <div style="font-size:.75rem;color:var(--gray);margin-bottom:14px;">⏳ El pago queda pendiente hasta que el administrador confirme que la transferencia llegó a la cuenta de Santa Marta.</div>
       </div>
 
       <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
@@ -479,6 +517,16 @@
 
   function cerrarModal() {
     document.getElementById('modal-reclamo').style.display = 'none';
+  }
+
+  function abrirCancelacion(id, codigo) {
+    document.getElementById('cancelacion-envio-id').value = id;
+    document.getElementById('cancelacion-envio-codigo').textContent = codigo;
+    document.getElementById('modal-cancelacion').style.display = 'flex';
+  }
+
+  function cerrarCancelacion() {
+    document.getElementById('modal-cancelacion').style.display = 'none';
   }
 
   function abrirPago(id, codigo, saldo) {

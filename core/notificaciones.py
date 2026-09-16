@@ -30,6 +30,15 @@ MENSAJES_ESTADO = {
         'Tu envío fue entregado',
         'Tu paquete {codigo} fue entregado con éxito. ¡Gracias por elegir Santa Marta!',
     ),
+    'cancelado': (
+        'Tu envío fue cancelado',
+        'Tu paquete {codigo} fue cancelado. Si no lo solicitaste o tenés dudas, comunicate con la sucursal.',
+    ),
+    'devuelto': (
+        'Tu envío fue devuelto a Buenos Aires',
+        'Tu paquete {codigo} fue devuelto a Casa Central en Buenos Aires porque no pudo ser retirado a tiempo. '
+        'Comunicate con la sucursal para coordinar un nuevo envío.',
+    ),
 }
 
 
@@ -61,6 +70,19 @@ def notificar_recibo_pago(pago):
     enviar(f'Recibo de pago — {envio.codigo}', '\n'.join(lineas), envio.destinatario.email)
 
 
+def notificar_comprobante_recibido(pago):
+    envio = pago.envio
+    enviar(
+        f'Recibimos tu comprobante — {envio.codigo}',
+        (
+            f'Recibimos el comprobante de tu transferencia por ${pago.monto} para el envío {envio.codigo}.\n\n'
+            'Un administrador va a verificar que la transferencia haya llegado a la cuenta de Santa Marta. '
+            'Te vamos a avisar por este mismo medio cuando quede confirmado.'
+        ),
+        envio.destinatario.email,
+    )
+
+
 def notificar_intento_fallido(envio):
     if envio.intentos_entrega >= envio.MAX_INTENTOS_ENTREGA:
         asunto = 'Tu paquete te espera en la sucursal'
@@ -76,6 +98,29 @@ def notificar_intento_fallido(envio):
             'En los próximos días lo visitaremos de nuevo.'
         )
     enviar(asunto, cuerpo, envio.destinatario.email)
+
+
+def notificar_reclamo_actualizado(reclamo):
+    lineas = [
+        f'Tu reclamo N° {reclamo.id} sobre el envío {reclamo.envio.codigo} fue actualizado.',
+        '',
+        f'Estado actual: {reclamo.get_estado_display()}',
+    ]
+    if reclamo.respuesta:
+        lineas += ['', 'Respuesta de la sucursal:', reclamo.respuesta]
+    enviar(f'Actualización de tu reclamo N° {reclamo.id}', '\n'.join(lineas), reclamo.cliente.email)
+
+
+def notificar_solicitud_cancelacion_recibida(solicitud):
+    envio = solicitud.envio
+    enviar(
+        f'Recibimos tu pedido de cancelación — {envio.codigo}',
+        (
+            f'Recibimos tu solicitud de cancelación N° {solicitud.id} para el envío {envio.codigo}.\n\n'
+            'Un administrador lo va a revisar y te vamos a avisar por este mismo medio cuando quede resuelto.'
+        ),
+        envio.destinatario.email,
+    )
 
 
 def notificar_demora(envio):

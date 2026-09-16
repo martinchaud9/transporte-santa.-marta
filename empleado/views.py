@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from core.models import Envio, Incidencia, Despacho
+from core.models import Envio, Incidencia, Despacho, LogAuditoria
 from core.zonificacion import geocodificar, calcular_zona, ordenar_ruta
 from core.notificaciones import notificar_cambio_estado, notificar_intento_fallido
 
@@ -14,7 +14,11 @@ def _contexto_dashboard(request):
         'envios_sucursal': Envio.objects.filter(estado='en_sucursal'),
         'envios_reparto': Envio.objects.filter(estado='en_reparto'),
         'envios_retenidos': Envio.objects.filter(estado='retenido'),
-        'despachos_pendientes': Despacho.objects.filter(recepcion_finalizada=False).order_by('fecha_salida'),
+        # Solo camiones que ya salieron de Buenos Aires (los que todavía se
+        # están cargando en Casa Central no le llegan a la sucursal todavía).
+        'despachos_pendientes': Despacho.objects.filter(
+            fecha_salida__isnull=False, recepcion_finalizada=False
+        ).order_by('fecha_salida'),
         'transito_sin_despacho': Envio.objects.filter(estado='en_transito', despacho__isnull=True),
         'mis_entregas': Envio.objects.filter(entregado_por=request.user).select_related('destinatario').order_by('-fecha_entrega'),
     }
@@ -141,14 +145,22 @@ def reportar_perdida_view(request):
         if envio.tiene_perdida_reportada:
             messages.info(request, f'{envio.codigo} ya figura como perdido.')
         else:
+            estado_previo = envio.get_estado_display()
             Incidencia.objects.create(
                 envio=envio,
                 registrado_por=request.user,
                 tipo='perdido',
-                descripcion=f'Paquete reportado como perdido en la sucursal (estado previo: {envio.get_estado_display()}).',
+                descripcion=f'Paquete reportado como perdido en la sucursal (estado previo: {estado_previo}).',
             )
             envio.estado = 'extraviado'
             envio.save()
+            LogAuditoria.objects.create(
+                accion='extravio_envio',
+                realizado_por=request.user,
+                envio_afectado=envio,
+                usuario_afectado=envio.destinatario,
+                detalle=f'Envío {envio.codigo} reportado como perdido en la sucursal (estado previo: {estado_previo}).',
+            )
             messages.warning(request, f'{envio.codigo} quedó marcado como extraviado. Se generó la incidencia automáticamente.')
     return redirect('empleado_dashboard')
 
@@ -167,11 +179,19 @@ def finalizar_recepcion_view(request):
         for envio in faltantes:
             envio.estado = 'extraviado'
             envio.save()
+            descripcion = f'Faltante detectado al finalizar la recepción del {despacho}: el paquete no llegó con el camión.'
             Incidencia.objects.create(
                 envio=envio,
                 registrado_por=request.user,
                 tipo='perdido',
-                descripcion=f'Faltante detectado al finalizar la recepción del {despacho}: el paquete no llegó con el camión.',
+                descripcion=descripcion,
+            )
+            LogAuditoria.objects.create(
+                accion='extravio_envio',
+                realizado_por=request.user,
+                envio_afectado=envio,
+                usuario_afectado=envio.destinatario,
+                detalle=descripcion,
             )
         recibidos = despacho.envios_recibidos
         despacho.recepcion_finalizada = True

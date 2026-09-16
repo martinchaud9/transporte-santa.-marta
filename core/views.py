@@ -29,6 +29,7 @@ def registro_cliente_view(request):
             # Si existe usuario con ese DNI, actualizarlo
             usuario_existente = Usuario.objects.get(dni=dni)
             usuario_existente.first_name = request.POST.get('first_name', usuario_existente.first_name)
+            usuario_existente.last_name = request.POST.get('last_name', usuario_existente.last_name)
             usuario_existente.email = request.POST.get('email', usuario_existente.email)
             usuario_existente.telefono = request.POST.get('telefono', usuario_existente.telefono)
             usuario_existente.username = request.POST.get('username', usuario_existente.username)

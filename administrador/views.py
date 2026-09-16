@@ -6,8 +6,11 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho, LogAuditoria
+from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho, LogAuditoria, SolicitudCancelacion
 from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, EditarVehiculoForm
+from core.notificaciones import (
+    notificar_recibo_pago, notificar_cambio_estado, notificar_reclamo_actualizado,
+)
 
 MESES = [
     (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
@@ -16,6 +19,13 @@ MESES = [
 ]
 
 def _contexto_dashboard():
+    # Regla de negocio: un paquete retenido en sucursal más de
+    # Envio.UMBRAL_RETENCION_DIAS días sin que el cliente lo retire se
+    # devuelve solo a Buenos Aires. Se revisa acá porque es el punto de
+    # entrada común a toda vista del panel admin — no hace falta un cron.
+    for envio in Envio.devolver_retenidos_vencidos():
+        notificar_cambio_estado(envio)
+
     anio_actual = timezone.now().year
     return {
         'empleados': Usuario.objects.filter(rol='empleado'),
@@ -28,9 +38,13 @@ def _contexto_dashboard():
         'pagos': Pago.objects.select_related('envio', 'envio__destinatario').order_by('-fecha'),
         'envios_sin_pago': Envio.objects.filter(pagos__isnull=True).select_related('destinatario'),
         'todos_los_envios': Envio.objects.select_related('destinatario').order_by('-fecha_registro'),
-        'despachos': Despacho.objects.prefetch_related('envios__destinatario').order_by('-fecha_salida'),
+        'despachos': Despacho.objects.prefetch_related('envios__destinatario').order_by('-fecha_creacion'),
         'incidencias': Incidencia.objects.select_related('envio', 'envio__destinatario', 'registrado_por').order_by('-fecha'),
         'reclamos': Reclamo.objects.select_related('envio', 'cliente').order_by('-fecha_creacion'),
+        'solicitudes_cancelacion_pendientes': SolicitudCancelacion.objects.filter(estado='pendiente').select_related('envio', 'cliente').order_by('fecha_creacion'),
+        'logs_auditoria': LogAuditoria.objects.select_related(
+            'realizado_por', 'usuario_afectado', 'pago_afectado', 'pago_afectado__envio', 'envio_afectado'
+        ),
     }
 
 @login_required
@@ -102,6 +116,10 @@ def eliminar_empleado_view(request, empleado_id):
         # deshabilita la cuenta, lo que revoca el acceso al sistema.
         empleado.is_active = False
         empleado.save(update_fields=['is_active'])
+        # Si tenía un vehículo asignado, queda libre para asignarlo a otro
+        # empleado — no tiene sentido que siga "ocupado" por alguien que ya
+        # no puede manejarlo.
+        Vehiculo.objects.filter(empleado=empleado).update(empleado=None)
         LogAuditoria.objects.create(
             accion='baja_empleado',
             usuario_afectado=empleado,
@@ -307,9 +325,92 @@ def detalle_envio_view(request, envio_id):
         'envio_detalle': envio,
         'envio_pagos': envio.pagos.filter(anulado=False),
         'envio_incidencias': envio.incidencias.all(),
+        'solicitud_cancelacion_pendiente': envio.solicitudes_cancelacion.filter(estado='pendiente').first(),
         'mostrar_detalle_envio': True,
     })
     return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def cancelar_envio_view(request, envio_id):
+    """Cancela un envío que todavía no salió de Buenos Aires. Una vez
+    despachado ya no tiene sentido cancelarlo: ahí la vía es marcarlo
+    devuelto, si corresponde."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        try:
+            envio = Envio.objects.get(id=envio_id, estado='pendiente')
+        except Envio.DoesNotExist:
+            messages.error(request, 'Ese envío no existe o ya no se puede cancelar (ya fue despachado).')
+            return redirect('admin_dashboard')
+
+        tenia_pago = envio.pagos.filter(anulado=False, verificado=True).exists()
+        envio.estado = 'cancelado'
+        envio.save()
+        notificar_cambio_estado(envio)
+        if tenia_pago:
+            messages.warning(request, f'{envio.codigo} cancelado. Atención: este envío ya tenía un pago confirmado — gestioná la devolución del dinero manualmente.')
+        else:
+            messages.success(request, f'✓ {envio.codigo} cancelado. Se avisó al cliente por email.')
+    return redirect('admin_dashboard')
+
+
+@login_required
+def resolver_solicitud_cancelacion_view(request, solicitud_id):
+    """El administrador autoriza un pedido de cancelación hecho por el
+    cliente. No existe un "rechazar": como la solicitud solo se puede pedir
+    mientras el envío sigue pendiente (nunca salió de Buenos Aires), no hay
+    ningún costo hundido que justifique negarla — el admin solo confirma."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        solicitud = SolicitudCancelacion.objects.select_related('envio').get(id=solicitud_id, estado='pendiente')
+    except SolicitudCancelacion.DoesNotExist:
+        messages.error(request, 'Esa solicitud no existe o ya fue resuelta.')
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        envio = solicitud.envio
+        if envio.estado != 'pendiente':
+            messages.error(request, f'{envio.codigo} ya no está pendiente (estado actual: {envio.get_estado_display()}) — no se puede cancelar.')
+            return redirect('admin_dashboard')
+
+        tenia_pago = envio.pagos.filter(anulado=False, verificado=True).exists()
+        envio.estado = 'cancelado'
+        envio.save()
+
+        solicitud.estado = 'aprobada'
+        solicitud.resuelto_por = request.user
+        solicitud.fecha_resolucion = timezone.now()
+        solicitud.save()
+
+        notificar_cambio_estado(envio)
+        if tenia_pago:
+            messages.warning(request, f'{envio.codigo} cancelado. Atención: este envío ya tenía un pago confirmado — gestioná la devolución del dinero manualmente.')
+        else:
+            messages.success(request, f'✓ {envio.codigo} cancelado. Se avisó al cliente por email.')
+
+    return redirect('admin_dashboard')
+
+
+@login_required
+def marcar_devuelto_view(request, envio_id):
+    """Da por cerrado un envío retenido que el cliente nunca pasó a retirar."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        try:
+            envio = Envio.objects.get(id=envio_id, estado='retenido')
+        except Envio.DoesNotExist:
+            messages.error(request, 'Ese envío no existe o no está retenido en sucursal.')
+            return redirect('admin_dashboard')
+
+        envio.estado = 'devuelto'
+        envio.save()
+        notificar_cambio_estado(envio)
+        messages.success(request, f'✓ {envio.codigo} marcado como devuelto a Buenos Aires. Se avisó al cliente por email.')
+    return redirect('admin_dashboard')
 
 
 @login_required
@@ -325,14 +426,41 @@ def gestionar_reclamo_view(request, reclamo_id):
         estado = request.POST.get('estado')
         respuesta = request.POST.get('respuesta', '')
         if estado in dict(Reclamo.ESTADO_CHOICES):
+            cambio = estado != reclamo.estado or respuesta != reclamo.respuesta
             reclamo.estado = estado
             reclamo.respuesta = respuesta
             reclamo.save()
+            if cambio:
+                notificar_reclamo_actualizado(reclamo)
+                messages.success(request, f'✓ Reclamo N° {reclamo.id} actualizado. Se avisó al cliente por email.')
         return redirect('admin_dashboard')
 
     contexto = _contexto_dashboard()
     contexto.update({'reclamo_gestionar': reclamo, 'mostrar_gestionar_reclamo': True})
     return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def confirmar_pago_view(request, pago_id):
+    """El administrador confirma que la transferencia realmente llegó a la
+    cuenta de la empresa. Hasta este momento el pago no contaba como
+    recibido: el envío seguía "Debe $X" y no se podía entregar."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        try:
+            pago = Pago.objects.get(id=pago_id, anulado=False, verificado=False)
+        except Pago.DoesNotExist:
+            messages.error(request, 'Ese pago no existe o ya fue verificado.')
+            return redirect('admin_dashboard')
+
+        pago.verificado = True
+        pago.verificado_por = request.user
+        pago.fecha_verificacion = timezone.now()
+        pago.save()
+        notificar_recibo_pago(pago)
+        messages.success(request, f'✓ Transferencia de ${pago.monto} confirmada para el envío {pago.envio.codigo}.')
+    return redirect('admin_dashboard')
 
 
 @login_required
@@ -342,9 +470,29 @@ def anular_pago_view(request, pago_id):
     if request.method == 'POST':
         try:
             pago = Pago.objects.get(id=pago_id)
-            if pago.envio.estado != 'entregado':
+            if pago.anulado:
+                messages.info(request, 'Ese pago ya estaba anulado.')
+            elif pago.envio.estado != 'entregado':
+                era_verificado = pago.verificado
                 pago.anulado = True
                 pago.save()
+                LogAuditoria.objects.create(
+                    accion='anulacion_pago' if era_verificado else 'rechazo_pago',
+                    realizado_por=request.user,
+                    pago_afectado=pago,
+                    usuario_afectado=pago.envio.destinatario,
+                    detalle=(
+                        f'Pago de ${pago.monto} ({pago.get_medio_pago_display()}) del envío {pago.envio.codigo}, '
+                        f'{"anulado" if era_verificado else "rechazado (nunca se verificó la transferencia)"} '
+                        f'por {request.user.get_full_name() or request.user.username}.'
+                    ),
+                )
+                if era_verificado:
+                    messages.success(request, f'Pago de {pago.envio.codigo} anulado.')
+                else:
+                    messages.warning(request, f'Comprobante de {pago.envio.codigo} rechazado: la transferencia no se confirmó como recibida.')
+            else:
+                messages.error(request, 'No se puede anular el pago de un envío ya entregado.')
         except Pago.DoesNotExist:
             pass
     return redirect('admin_dashboard')
