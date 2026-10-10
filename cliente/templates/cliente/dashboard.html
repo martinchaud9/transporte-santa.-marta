@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mi Panel — Santa Marta</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -237,6 +238,11 @@
               <div class="step-label {% if envio.estado == 'entregado' %}done{% endif %}">Entregado</div>
             </div>
           </div>
+          {% if envio.estado == 'en_reparto' %}
+          <div id="mapa-reparto-{{ envio.id }}" style="height:200px;border-radius:12px;margin-top:14px;background:var(--off-white);"></div>
+          <div id="mapa-estado-{{ envio.id }}" style="font-size:.75rem;color:var(--gray);margin-top:6px;">Buscando la ubicación del reparto…</div>
+          <script>document.addEventListener('DOMContentLoaded', function () { iniciarMapaReparto('{{ envio.id }}', '{{ envio.codigo }}'); });</script>
+          {% endif %}
         </div>
         <div class="envio-actions">
           <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
@@ -499,7 +505,41 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+  const mapasReparto = {};
+
+  function iniciarMapaReparto(envioId, codigo) {
+    function actualizar() {
+      fetch('/rastrear/ubicacion/' + encodeURIComponent(codigo) + '/')
+        .then(r => r.json())
+        .then(data => {
+          const estadoEl = document.getElementById('mapa-estado-' + envioId);
+          if (!data.disponible) {
+            if (estadoEl) estadoEl.textContent = 'Todavía no tenemos la ubicación en vivo del reparto — probamos de nuevo en un rato.';
+            return;
+          }
+          if (!mapasReparto[envioId]) {
+            const mapa = L.map('mapa-reparto-' + envioId).setView([data.lat, data.lon], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(mapa);
+            const marcador = L.marker([data.lat, data.lon]).addTo(mapa);
+            mapasReparto[envioId] = { mapa, marcador };
+          } else {
+            mapasReparto[envioId].marcador.setLatLng([data.lat, data.lon]);
+            mapasReparto[envioId].mapa.panTo([data.lat, data.lon]);
+          }
+          const mins = Math.floor(data.hace_segundos / 60);
+          if (estadoEl) estadoEl.textContent = mins < 1 ? 'Ubicación actualizada hace instantes' : ('Ubicación actualizada hace ' + mins + ' minuto(s)');
+        })
+        .catch(() => {
+          const estadoEl = document.getElementById('mapa-estado-' + envioId);
+          if (estadoEl) estadoEl.textContent = 'No se pudo consultar la ubicación en este momento.';
+        });
+    }
+    actualizar();
+    setInterval(actualizar, 15000);
+  }
+
   function showTab(tab) {
     document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
     document.getElementById('tab-' + tab).style.display = 'block';

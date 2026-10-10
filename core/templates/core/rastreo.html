@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rastrear envío — Transporte Santa Marta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+  {% if envio.estado == 'en_reparto' %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  {% endif %}
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-dark:   #0a2240;
+      --blue-mid:    #0d3b6e;
+      --blue:        #1565c0;
+      --blue-light:  #1e88e5;
+      --blue-bright: #42a5f5;
+      --white:       #ffffff;
+      --off-white:   #f0f6ff;
+      --gray-light:  #d6e4f7;
+      --gray:        #8baac8;
+      --text:        #1a2e44;
+    }
+
+    html, body { min-height: 100%; font-family: 'Barlow', sans-serif; background: var(--blue-dark); }
+
+    .bg {
+      position: fixed; inset: 0; z-index: 0;
+      background: linear-gradient(135deg, #06172e 0%, #0a2240 45%, #0d3b6e 100%);
+    }
+    .bg::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 110%, rgba(21,101,192,.35) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 85% -10%, rgba(30,136,229,.25) 0%, transparent 55%);
+    }
+
+    .page { position: relative; z-index: 1; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+
+    .card {
+      width: 100%; max-width: 520px;
+      background: rgba(255,255,255,.97);
+      border-radius: 20px;
+      padding: 40px 36px 36px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06);
+      animation: slideUp .5s cubic-bezier(.16,1,.3,1) both;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+
+    .logo-mark { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-bright));
+      border-radius: 11px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(30,136,229,.4); flex-shrink: 0;
+    }
+    .logo-icon svg { width: 24px; height: 24px; fill: white; }
+    .logo-text { font-family: 'Barlow Condensed', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--blue-dark); line-height: 1.2; }
+    .logo-text span { display: block; font-size: .7rem; font-weight: 500; color: var(--gray); letter-spacing: .1em; text-transform: uppercase; }
+
+    .card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 6px; }
+    .card-sub { font-size: .875rem; color: var(--gray); margin-bottom: 24px; }
+
+    .field input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 9px; font-family: 'Barlow', sans-serif;
+      font-size: .95rem; color: var(--blue-dark); background: white; outline: none;
+      text-transform: uppercase;
+    }
+    .field input:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px rgba(30,136,229,.15); }
+    .field input::placeholder { color: #b0c4de; text-transform: none; }
+
+    .btn-primary {
+      width: 100%; padding: 13px; margin-top: 12px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      color: white; border: none; border-radius: 10px;
+      font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(21,101,192,.35);
+    }
+
+    .back-link {
+      display: inline-block; margin-top: 20px; font-size: .85rem;
+      color: var(--blue-light); text-decoration: none; font-weight: 500;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    /* Resultado */
+    .resultado { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--gray-light); }
+    .envio-codigo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--blue-dark); }
+    .envio-meta { font-size: .82rem; color: var(--gray); margin-top: 2px; margin-bottom: 18px; }
+
+    .badge { display: inline-flex; align-items: center; padding: 5px 14px; border-radius: 20px; font-size: .8rem; font-weight: 700; }
+    .badge-pendiente { background: #fef9c3; color: #a16207; }
+    .badge-en_transito { background: #dbeafe; color: #1d4ed8; }
+    .badge-en_sucursal { background: #ede9fe; color: #6d28d9; }
+    .badge-en_reparto { background: #ffedd5; color: #c2410c; }
+    .badge-entregado { background: #dcfce7; color: #15803d; }
+    .badge-cancelado { background: #fee2e2; color: #dc2626; }
+    .badge-retenido { background: #fed7aa; color: #9a3412; }
+    .badge-devuelto { background: #e5e7eb; color: #374151; }
+    .badge-extraviado { background: #fecaca; color: #991b1b; }
+
+    .nota-estado { font-size: .85rem; color: var(--text); background: var(--off-white); border-radius: 10px; padding: 14px 16px; margin-top: 16px; line-height: 1.5; }
+
+    /* PROGRESS BAR */
+    .progress-bar { display: flex; align-items: center; gap: 0; margin-top: 20px; }
+    .step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+    .step-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--gray-light); border: 2px solid var(--gray-light); z-index: 1; }
+    .step-dot.done { background: var(--blue); border-color: var(--blue); }
+    .step-dot.current { background: white; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.2); }
+    .step-label { font-size: .62rem; color: var(--gray); margin-top: 5px; text-align: center; }
+    .step-label.done { color: var(--blue); font-weight: 600; }
+    .step-label.current { color: var(--blue-dark); font-weight: 700; }
+    .step-line { height: 2px; background: var(--gray-light); flex: 1; margin-top: -19px; }
+    .step-line.done { background: var(--blue); }
+
+    .no-encontrado { text-align: center; padding: 24px 8px; }
+    .no-encontrado svg { width: 40px; height: 40px; color: var(--gray); margin-bottom: 12px; }
+    .no-encontrado p { font-size: .9rem; color: var(--text); line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="page">
+  <div class="card">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </div>
+      <div class="logo-text">Transporte Santa Marta<span>Seguimiento de envíos</span></div>
+    </div>
+
+    <div class="card-title">Rastrear un envío</div>
+    <div class="card-sub">Ingresá el código que te dieron al despachar tu paquete — no hace falta tener cuenta.</div>
+
+    <form method="GET" action="{% url 'rastrear_envio' %}">
+      <div class="field">
+        <input type="text" name="codigo" placeholder="Ej: ENV-A1B2C3" value="{{ codigo_buscado }}" autofocus/>
+      </div>
+      <button type="submit" class="btn-primary">Buscar envío</button>
+    </form>
+
+    {% if buscado %}
+      {% if envio %}
+      <div class="resultado">
+        <div class="envio-codigo">{{ envio.codigo }}</div>
+        <div class="envio-meta">Registrado el {{ envio.fecha_registro|date:"d/m/Y" }} · {{ envio.get_modalidad_display }}</div>
+        <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
+
+        {% if envio.estado == 'cancelado' %}
+        <div class="nota-estado">Este envío fue cancelado. Si tenés dudas, comunicate con la sucursal.</div>
+        {% elif envio.estado == 'devuelto' %}
+        <div class="nota-estado">Este envío fue devuelto a Casa Central en Buenos Aires porque no se retiró a tiempo. Comunicate con la sucursal para coordinar un nuevo envío.</div>
+        {% elif envio.estado == 'retenido' %}
+        <div class="nota-estado">Este envío está retenido en la sucursal de Santiago del Estero: no se pudo entregar y está esperando que lo retiren con DNI.</div>
+        {% elif envio.estado == 'extraviado' %}
+        <div class="nota-estado">Estamos investigando la ubicación de este envío. Comunicate con la sucursal para más información.</div>
+        {% else %}
+        <div class="progress-bar">
+          <div class="step">
+            <div class="step-dot {% if envio.estado == 'pendiente' %}current{% else %}done{% endif %}"></div>
+            <div class="step-label {% if envio.estado == 'pendiente' %}current{% else %}done{% endif %}">Pendiente</div>
+          </div>
+          <div class="step-line {% if envio.estado != 'pendiente' %}done{% endif %}"></div>
+          <div class="step">
+            <div class="step-dot {% if envio.estado == 'en_transito' %}current{% elif envio.estado in 'en_sucursal,en_reparto,entregado' %}done{% endif %}"></div>
+            <div class="step-label {% if envio.estado == 'en_transito' %}current{% elif envio.estado in 'en_sucursal,en_reparto,entregado' %}done{% endif %}">En tránsito</div>
+          </div>
+          <div class="step-line {% if envio.estado == 'en_sucursal' or envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+          <div class="step">
+            <div class="step-dot {% if envio.estado == 'en_sucursal' %}current{% elif envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step-label {% if envio.estado == 'en_sucursal' %}current{% elif envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}">En sucursal</div>
+          </div>
+          <div class="step-line {% if envio.estado == 'en_reparto' or envio.estado == 'entregado' %}done{% endif %}"></div>
+          <div class="step">
+            <div class="step-dot {% if envio.estado == 'en_reparto' %}current{% elif envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step-label {% if envio.estado == 'en_reparto' %}current{% elif envio.estado == 'entregado' %}done{% endif %}">En reparto</div>
+          </div>
+          <div class="step-line {% if envio.estado == 'entregado' %}done{% endif %}"></div>
+          <div class="step">
+            <div class="step-dot {% if envio.estado == 'entregado' %}done{% endif %}"></div>
+            <div class="step-label {% if envio.estado == 'entregado' %}done{% endif %}">Entregado</div>
+          </div>
+        </div>
+        {% if envio.estado == 'en_reparto' %}
+        <div id="mapa-reparto" style="height:220px;border-radius:12px;margin-top:18px;background:var(--off-white);"></div>
+        <div id="mapa-estado" style="font-size:.78rem;color:var(--gray);margin-top:8px;text-align:center;">Buscando la ubicación del reparto…</div>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="resultado no-encontrado">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <p>No encontramos ningún envío con el código <strong>{{ codigo_buscado }}</strong>. Revisá que esté bien escrito, tal como te lo pasaron al despachar el paquete.</p>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <a href="{% url 'inicio' %}" class="back-link">← Volver al inicio</a>
+  </div>
+</div>
+
+{% if envio.estado == 'en_reparto' %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  (function () {
+    var mapa = null, marcador = null;
+    var urlUbicacion = "{% url 'ubicacion_envio' envio.codigo %}";
+
+    function actualizar() {
+      fetch(urlUbicacion)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var estadoEl = document.getElementById('mapa-estado');
+          if (!data.disponible) {
+            estadoEl.textContent = 'Todavía no tenemos la ubicación en vivo del reparto — probamos de nuevo en un rato.';
+            return;
+          }
+          if (!mapa) {
+            mapa = L.map('mapa-reparto').setView([data.lat, data.lon], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '© OpenStreetMap', maxZoom: 18,
+            }).addTo(mapa);
+            marcador = L.marker([data.lat, data.lon]).addTo(mapa);
+          } else {
+            marcador.setLatLng([data.lat, data.lon]);
+            mapa.panTo([data.lat, data.lon]);
+          }
+          var mins = Math.floor(data.hace_segundos / 60);
+          estadoEl.textContent = mins < 1 ? 'Ubicación actualizada hace instantes' : ('Ubicación actualizada hace ' + mins + ' minuto(s)');
+        })
+        .catch(function () {
+          document.getElementById('mapa-estado').textContent = 'No se pudo consultar la ubicación en este momento.';
+        });
+    }
+
+    actualizar();
+    setInterval(actualizar, 15000);
+  })();
+</script>
+{% endif %}
+
+</body>
+</html>

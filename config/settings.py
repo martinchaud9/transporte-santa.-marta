@@ -26,7 +26,16 @@ SECRET_KEY = 'django-insecure-jyuy7m56+h)pf^0le5qj4w3nuze)3*#vc5r&5b9y4a1g@wt8n*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# '*' habilita cualquier dominio (incluido el de ngrok) mientras se usa el
+# túnel para la demo — el proyecto sigue siendo de uso local/académico,
+# nunca expuesto de forma permanente, así que no hace falta restringirlo más.
+ALLOWED_HOSTS = ['*']
+
+# Además de ALLOWED_HOSTS, Django exige que el origen de cualquier POST
+# (como el login) esté en esta lista aparte, o lo rechaza como CSRF. La URL
+# de ngrok cambia cada vez que se reinicia el túnel, así que se habilitan los
+# dos dominios comodín que usa el plan gratuito en vez de la URL puntual.
+CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app', 'https://*.ngrok-free.dev']
 
 
 # Application definition

@@ -13,4 +13,5 @@ urlpatterns = [
     path('reparto/', views.preparar_reparto_view, name='empleado_preparar_reparto'),
     path('reparto/despachar/', views.despachar_zona_view, name='empleado_despachar_zona'),
     path('reparto/asignar-zona/', views.asignar_zona_manual_view, name='empleado_asignar_zona'),
+    path('reparto/ubicacion/', views.actualizar_ubicacion_view, name='empleado_actualizar_ubicacion'),
 ]

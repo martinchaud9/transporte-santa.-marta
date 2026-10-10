@@ -213,6 +213,25 @@ class Envio(models.Model):
         return self.esta_pagado or self.pagos.filter(anulado=False, verificado=True, es_parcial=True).exists()
 
 
+class RepartoActivo(models.Model):
+    """El reparto de una zona en curso: qué empleado la está llevando ahora
+    mismo y su última posición GPS conocida (la manda su propio celular
+    mientras tiene el panel de reparto abierto). Se crea cuando un empleado
+    saca una zona a reparto (`despachar_zona_view`) y se borra solo cuando ya
+    no queda ningún envío 'en_reparto' de esa zona — así el rastreo del
+    cliente sabe cuándo dejar de mostrar el mapa. Una sola persona reparte
+    cada zona por vez, por eso `zona` es única."""
+    zona = models.CharField(max_length=10, choices=Envio.ZONA_CHOICES, unique=True)
+    empleado = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='repartos_activos')
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    ultima_lat = models.FloatField(null=True, blank=True)
+    ultima_lon = models.FloatField(null=True, blank=True)
+    fecha_ultima_ubicacion = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Reparto {self.get_zona_display()} — {self.empleado}"
+
+
 class Pago(models.Model):
     MEDIO_CHOICES = [
         ('tarjeta', 'Tarjeta'),

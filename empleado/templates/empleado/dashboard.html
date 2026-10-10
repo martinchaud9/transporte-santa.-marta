@@ -141,6 +141,11 @@
 <div class="main">
   <div class="topbar">
     <div class="topbar-title" id="page-title">Dashboard</div>
+    {% if repartos_activos %}
+    <span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#15803d;padding:5px 12px;border-radius:20px;font-size:.78rem;font-weight:600;">
+      📍 Compartiendo tu ubicación — {% for r in repartos_activos %}{{ r.get_zona_display }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </span>
+    {% endif %}
     <span class="topbar-date" id="topbar-date"></span>
   </div>
 
@@ -630,6 +635,36 @@
     detenerCamara();
     document.getElementById('modal-scan').classList.remove('open');
   }
+
+  // ── Ubicación en vivo mientras se reparte ──
+  {% if repartos_activos %}
+  function getCookie(name) {
+    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+
+  function mandarUbicacion(pos) {
+    const body = new URLSearchParams();
+    body.set('lat', pos.coords.latitude);
+    body.set('lon', pos.coords.longitude);
+    fetch('{% url "empleado_actualizar_ubicacion" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: body,
+    }).catch(() => { /* si falla un envío, no pasa nada, se reintenta en el próximo */ });
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      mandarUbicacion,
+      function (err) { console.warn('No se pudo obtener la ubicación:', err.message); },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+    );
+  }
+  {% endif %}
 </script>
 </body>
 </html>

@@ -3,8 +3,9 @@ import time
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.utils import timezone
-from core.models import Envio, Incidencia, Despacho, LogAuditoria
+from core.models import Envio, Incidencia, Despacho, LogAuditoria, RepartoActivo
 from core.zonificacion import geocodificar, calcular_zona, ordenar_ruta
 from core.notificaciones import notificar_cambio_estado, notificar_intento_fallido
 
@@ -21,7 +22,30 @@ def _contexto_dashboard(request):
         ).order_by('fecha_salida'),
         'transito_sin_despacho': Envio.objects.filter(estado='en_transito', despacho__isnull=True),
         'mis_entregas': Envio.objects.filter(entregado_por=request.user).select_related('destinatario').order_by('-fecha_entrega'),
+        # Mientras el empleado tenga al menos una zona activa a su cargo, el
+        # panel manda su ubicación GPS solo, de fondo, para que el cliente
+        # pueda rastrear el reparto.
+        'repartos_activos': RepartoActivo.objects.filter(empleado=request.user).select_related(),
     }
+
+
+def _finalizar_reparto_si_corresponde(zona):
+    """Si ya no queda ningún envío en_reparto de esta zona (se entregaron
+    todos o volvieron a sucursal), se cierra el reparto activo — el cliente
+    deja de ver el mapa en cuanto no hay nada más que rastrear."""
+    if zona and not Envio.objects.filter(estado='en_reparto', zona=zona).exists():
+        RepartoActivo.objects.filter(zona=zona).delete()
+
+
+def _registrar_reparto_activo(zona, empleado):
+    """Asegura que haya un reparto activo para esta zona a cargo de este
+    empleado. Se llama tanto al despachar una zona entera (`despachar_zona_view`)
+    como al pasar un envío individual a reparto a mano (`actualizar_estado_view`).
+    `get_or_create` para no pisar la posición ya conocida si la zona ya
+    estaba en reparto (por ejemplo, otro paquete de la misma zona que sale
+    un rato después)."""
+    if zona:
+        RepartoActivo.objects.get_or_create(zona=zona, defaults={'empleado': empleado})
 
 @login_required
 def dashboard_view(request):
@@ -73,8 +97,10 @@ def actualizar_estado_view(request):
                 envio.save()
                 notificar_cambio_estado(envio)
                 if nuevo_estado == 'entregado':
+                    _finalizar_reparto_si_corresponde(envio.zona)
                     messages.success(request, f'✓ Paquete {envio.codigo} entregado correctamente.')
                 else:
+                    _registrar_reparto_activo(envio.zona, request.user)
                     messages.success(request, f'✓ Paquete {envio.codigo} salió a reparto.')
         except Envio.DoesNotExist:
             messages.error(request, 'El envío no existe.')
@@ -224,6 +250,7 @@ def marcar_ausente_view(request):
                 envio.estado = 'en_sucursal'
             envio.notificado_demora = False
             envio.save()
+            _finalizar_reparto_si_corresponde(envio.zona)
             notificar_intento_fallido(envio)
             if envio.estado == 'retenido':
                 messages.warning(request, f'{envio.codigo}: segundo intento fallido. El paquete queda retenido en sucursal y se notificó al cliente para que pase a retirarlo.')
@@ -292,8 +319,29 @@ def despachar_zona_view(request):
             envio.estado = 'en_reparto'
             notificar_cambio_estado(envio)
         if afectados:
+            _registrar_reparto_activo(zona, request.user)
             messages.success(request, f'✓ Salieron a reparto {len(afectados)} paquetes de la zona {zona.title()}. Se notificó a los clientes.')
     return redirect('empleado_preparar_reparto')
+
+
+@login_required
+def actualizar_ubicacion_view(request):
+    """El celular del empleado manda acá su posición GPS cada tanto mientras
+    reparte, en segundo plano (ver JS en el dashboard). Actualiza todas las
+    zonas que este empleado tenga a su cargo en este momento."""
+    if request.user.rol != 'empleado':
+        return JsonResponse({'ok': False}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    try:
+        lat = float(request.POST.get('lat'))
+        lon = float(request.POST.get('lon'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Coordenadas inválidas'}, status=400)
+    actualizados = RepartoActivo.objects.filter(empleado=request.user).update(
+        ultima_lat=lat, ultima_lon=lon, fecha_ultima_ubicacion=timezone.now()
+    )
+    return JsonResponse({'ok': True, 'zonas_actualizadas': actualizados})
 
 @login_required
 def asignar_zona_manual_view(request):

@@ -170,14 +170,14 @@
 
     /* tabs */
     .tabs {
-      display: grid; grid-template-columns: 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
       background: var(--off-white);
       border-radius: 10px; padding: 4px;
       margin-bottom: 28px;
     }
     .tab-btn {
-      padding: 9px 0; border: none; background: transparent;
-      font-family: 'Barlow', sans-serif; font-size: .9rem; font-weight: 600;
+      padding: 9px 4px; border: none; background: transparent;
+      font-family: 'Barlow', sans-serif; font-size: .82rem; font-weight: 600;
       color: var(--gray); border-radius: 7px; cursor: pointer;
       transition: all .22s ease;
     }
@@ -332,6 +332,7 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('login')">Iniciar sesión</button>
         <button class="tab-btn" onclick="switchTab('register')">Registrarse</button>
+        <button class="tab-btn" onclick="switchTab('rastrear')">Rastrear envío</button>
       </div>
 
       <!-- LOGIN -->
@@ -399,13 +400,29 @@
   </form>
 </div>
 
+      <!-- RASTREAR ENVÍO -->
+<div class="form-panel" id="panel-rastrear">
+  <p style="font-size:.85rem;color:var(--gray);line-height:1.5;margin-bottom:18px;">
+    Ingresá el código que te dieron al despachar tu paquete y vas a ver su estado al instante — no hace falta tener cuenta ni iniciar sesión.
+  </p>
+  <form method="GET" action="{% url 'rastrear_envio' %}">
+    <div class="field">
+      <label>Código de envío</label>
+      <input type="text" name="codigo" placeholder="Ej: ENV-A1B2C3" style="text-transform:uppercase;"/>
+    </div>
+    <button type="submit" class="btn-primary">Ver estado del envío</button>
+  </form>
+</div>
+
 <script>
   function switchTab(tab) {
+    const tabs = ['login', 'register', 'rastrear'];
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+      b.classList.toggle('active', tabs[i] === tab);
     });
     document.getElementById('panel-login').classList.toggle('active', tab === 'login');
     document.getElementById('panel-register').classList.toggle('active', tab === 'register');
+    document.getElementById('panel-rastrear').classList.toggle('active', tab === 'rastrear');
   }
 
   function handleLogin() {
