@@ -485,33 +485,45 @@
       </p>
 
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:24px;">
-        {% for clave, etiqueta, envios_zona in reparto_zonas %}
+        {% for z in reparto_zonas %}
         <div class="table-card">
           <div class="table-card-header">
-            <div class="table-card-title">Zona {{ etiqueta }}</div>
-            <span class="badge badge-sucursal">{{ envios_zona|length }}</span>
+            <div class="table-card-title">Zona {{ z.etiqueta }}</div>
+            <span style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:.78rem;color:var(--gray);">Furgón: {{ z.peso_viaje|add:z.peso_en_reparto }} / {{ z.capacidad }} kg</span>
+              <span class="badge badge-sucursal">{{ z.viaje|length }}</span>
+            </span>
           </div>
           <table>
-            <thead><tr><th style="width:44px;">Orden</th><th>Código</th><th>Destinatario</th><th>Dirección</th></tr></thead>
+            <thead><tr><th style="width:44px;">Orden</th><th>Código</th><th>Destinatario</th><th>Dirección</th><th>Peso</th></tr></thead>
             <tbody>
-              {% for envio in envios_zona %}
+              {% for envio in z.viaje %}
               <tr>
                 <td><span class="badge badge-sucursal">{{ forloop.counter }}</span></td>
                 <td><strong>{{ envio.codigo }}</strong></td>
                 <td>{{ envio.destinatario.get_full_name }}</td>
                 <td style="color:var(--gray);font-size:.8rem;">{{ envio.direccion_entrega }}</td>
+                <td style="font-size:.8rem;">{{ envio.peso }} kg</td>
               </tr>
               {% empty %}
-              <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:16px;">Sin envíos en esta zona</td></tr>
+              <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:16px;">{% if z.quedan %}El furgón está lleno{% else %}Sin envíos en esta zona{% endif %}</td></tr>
               {% endfor %}
             </tbody>
           </table>
-          {% if envios_zona %}
+          {% if z.quedan %}
+          <div style="padding:12px 20px;background:#fff7ed;border-top:1px solid #fed7aa;">
+            <div style="font-size:.78rem;font-weight:700;color:#9a3412;margin-bottom:6px;">No entran en este viaje — salen en la próxima salida de la zona:</div>
+            {% for envio in z.quedan %}
+            <div style="font-size:.78rem;color:#9a3412;">• {{ envio.codigo }} — {{ envio.destinatario.get_full_name }} ({{ envio.peso }} kg)</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if z.viaje %}
           <div style="padding:14px 20px;border-top:1px solid var(--gray-light);">
             <form method="POST" action="{% url 'empleado_despachar_zona' %}">
               {% csrf_token %}
-              <input type="hidden" name="zona" value="{{ clave }}"/>
-              <button type="submit" class="btn btn-green">Salir a reparto — Zona {{ etiqueta }}</button>
+              <input type="hidden" name="zona" value="{{ z.clave }}"/>
+              <button type="submit" class="btn btn-green">Salir a reparto — Zona {{ z.etiqueta }}</button>
             </form>
           </div>
           {% endif %}

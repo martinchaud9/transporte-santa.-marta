@@ -1,11 +1,13 @@
 import time
+from decimal import Decimal
 
+from django.db.models import Sum
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
-from core.models import Envio, Incidencia, Despacho, LogAuditoria, RepartoActivo
+from core.models import Envio, Incidencia, Despacho, LogAuditoria, RepartoActivo, Vehiculo
 from core.zonificacion import geocodificar, calcular_zona, ordenar_ruta
 from core.notificaciones import notificar_cambio_estado, notificar_intento_fallido
 
@@ -35,6 +37,29 @@ def _finalizar_reparto_si_corresponde(zona):
     deja de ver el mapa en cuanto no hay nada más que rastrear."""
     if zona and not Envio.objects.filter(estado='en_reparto', zona=zona).exists():
         RepartoActivo.objects.filter(zona=zona).delete()
+
+
+def _peso_en_reparto(zona):
+    """Kilos que ya lleva el furgón de esta zona (envíos actualmente en reparto)."""
+    total = Envio.objects.filter(estado='en_reparto', zona=zona).aggregate(t=Sum('peso'))['t']
+    return total or Decimal('0')
+
+
+def _armar_viaje(zona, candidatos):
+    """Decide qué paquetes de la zona salen en este viaje del furgón y cuáles
+    esperan a la próxima salida. Recorre los candidatos en el orden de la ruta
+    y va cargando mientras entren en la capacidad que le queda al furgón; el
+    que no entra queda en sucursal para la siguiente salida de la zona.
+    Devuelve (viaje, quedan, peso_viaje, capacidad_libre)."""
+    libre = Vehiculo.CAPACIDAD_MAX_PESO_KG - _peso_en_reparto(zona)
+    viaje, quedan, acumulado = [], [], Decimal('0')
+    for envio in ordenar_ruta(list(candidatos)):
+        if acumulado + envio.peso <= libre:
+            viaje.append(envio)
+            acumulado += envio.peso
+        else:
+            quedan.append(envio)
+    return viaje, quedan, acumulado, libre
 
 
 def _registrar_reparto_activo(zona, empleado):
@@ -89,6 +114,15 @@ def actualizar_estado_view(request):
                         'El cliente debe pagar antes de recibir el paquete.'
                     )
                     return redirect('empleado_dashboard')
+                if nuevo_estado == 'en_reparto' and envio.zona:
+                    libre = Vehiculo.CAPACIDAD_MAX_PESO_KG - _peso_en_reparto(envio.zona)
+                    if envio.peso > libre:
+                        messages.error(
+                            request,
+                            f'{envio.codigo} ({envio.peso} kg) no entra en el furgón de la zona {envio.get_zona_display()}: '
+                            f'le quedan {max(libre, 0)} kg libres de {Vehiculo.CAPACIDAD_MAX_PESO_KG}. Sale en la próxima salida.'
+                        )
+                        return redirect('empleado_dashboard')
                 envio.estado = nuevo_estado
                 envio.notificado_demora = False
                 if nuevo_estado == 'entregado':
@@ -292,10 +326,16 @@ def preparar_reparto_view(request):
             'Asignales la zona a mano en el listado de abajo.'
         )
 
-    zonas = [
-        (clave, etiqueta, ordenar_ruta(list(candidatos.filter(zona=clave))))
-        for clave, etiqueta in Envio.ZONA_CHOICES
-    ]
+    zonas = []
+    for clave, etiqueta in Envio.ZONA_CHOICES:
+        viaje, quedan, peso_viaje, libre = _armar_viaje(clave, candidatos.filter(zona=clave))
+        zonas.append({
+            'clave': clave, 'etiqueta': etiqueta,
+            'viaje': viaje, 'quedan': quedan,
+            'peso_viaje': peso_viaje,
+            'peso_en_reparto': _peso_en_reparto(clave),
+            'capacidad': Vehiculo.CAPACIDAD_MAX_PESO_KG,
+        })
     contexto = _contexto_dashboard(request)
     contexto.update({
         'reparto_zonas': zonas,
@@ -311,7 +351,15 @@ def despachar_zona_view(request):
         return redirect('inicio')
     if request.method == 'POST':
         zona = request.POST.get('zona')
-        afectados = list(Envio.objects.filter(estado='en_sucursal', modalidad='domicilio', zona=zona))
+        candidatos = Envio.objects.filter(estado='en_sucursal', modalidad='domicilio', zona=zona)
+        afectados, quedan, peso_viaje, libre = _armar_viaje(zona, candidatos)
+        if candidatos.exists() and not afectados:
+            messages.warning(
+                request,
+                f'El furgón de la zona {zona.title()} está lleno ({Vehiculo.CAPACIDAD_MAX_PESO_KG - max(libre, 0)} kg de '
+                f'{Vehiculo.CAPACIDAD_MAX_PESO_KG} kg). Los paquetes esperan a la próxima salida.'
+            )
+            return redirect('empleado_preparar_reparto')
         Envio.objects.filter(id__in=[e.id for e in afectados]).update(
             estado='en_reparto', fecha_actualizacion=timezone.now(), notificado_demora=False
         )
@@ -320,7 +368,15 @@ def despachar_zona_view(request):
             notificar_cambio_estado(envio)
         if afectados:
             _registrar_reparto_activo(zona, request.user)
-            messages.success(request, f'✓ Salieron a reparto {len(afectados)} paquetes de la zona {zona.title()}. Se notificó a los clientes.')
+            mensaje = (
+                f'✓ Salieron a reparto {len(afectados)} paquetes ({peso_viaje} kg de {Vehiculo.CAPACIDAD_MAX_PESO_KG} kg) '
+                f'de la zona {zona.title()}. Se notificó a los clientes.'
+            )
+            if quedan:
+                mensaje += f' {len(quedan)} paquete(s) no entraron en el furgón y quedan para la próxima salida de la zona.'
+                messages.warning(request, mensaje)
+            else:
+                messages.success(request, mensaje)
     return redirect('empleado_preparar_reparto')
 
 

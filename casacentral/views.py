@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from core.models import Envio, Usuario, Despacho, Incidencia
+from core.models import Envio, Usuario, Despacho, Incidencia, Vehiculo
 from core.notificaciones import notificar_cambio_estado
 import uuid
 import io
@@ -70,6 +70,16 @@ def nuevo_envio_view(request):
                 request,
                 f'Un paquete de {peso} kg no entra en ningún camión: el límite por camión es '
                 f'{Despacho.CAPACIDAD_MAX_PESO_KG} kg.'
+            )
+            return redirect('casacentral_dashboard')
+
+        # Un paquete a domicilio tiene que entrar en el furgón de reparto; si es
+        # más pesado, nunca se podría entregar.
+        if modalidad == 'domicilio' and peso > Vehiculo.CAPACIDAD_MAX_PESO_KG:
+            messages.error(
+                request,
+                f'Un paquete de {peso} kg no entra en el furgón de reparto (máximo '
+                f'{Vehiculo.CAPACIDAD_MAX_PESO_KG} kg). Registralo con retiro en sucursal.'
             )
             return redirect('casacentral_dashboard')
 

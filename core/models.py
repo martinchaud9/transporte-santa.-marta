@@ -27,7 +27,9 @@ class Despacho(models.Model):
     todavía no haya salido. El límite es solo por peso: los paquetes tienen
     volúmenes muy distintos y no tiene sentido toparlos por cantidad.
     """
-    CAPACIDAD_MAX_PESO_KG = 200
+    # Camión de larga distancia Buenos Aires → Santiago. Sale de ~120 paquetes
+    # por viaje (240 envíos/semana en 2 camiones) de 10-15 kg promedio.
+    CAPACIDAD_MAX_PESO_KG = 2000
 
     fecha_creacion = models.DateTimeField(null=True, blank=True)
     fecha_salida = models.DateTimeField(null=True, blank=True)
@@ -381,12 +383,15 @@ class LogAuditoria(models.Model):
 
 
 class Vehiculo(models.Model):
+    # El reparto a domicilio se hace solo en furgón.
     TIPO_CHOICES = [
-        ('moto', 'Moto'),
-        ('auto', 'Auto'),
-        ('camioneta', 'Camioneta'),
         ('furgon', 'Furgón'),
     ]
+
+    # Carga máxima del furgón en cada salida de reparto de una zona (un Kangoo
+    # o Fiorino soporta ~600-800 kg; se deja margen). Cuando se llena, el resto
+    # de los paquetes de esa zona espera a la próxima salida.
+    CAPACIDAD_MAX_PESO_KG = 600
 
     patente = models.CharField(max_length=10, unique=True)
     marca = models.CharField(max_length=50, blank=True)

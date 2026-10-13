@@ -438,10 +438,7 @@
             <div class="field">
               <label>Tipo de vehículo *</label>
               <select name="tipo">
-                <option value="moto" {% if datos_vehiculo.tipo == 'moto' %}selected{% endif %}>Moto</option>
-                <option value="auto" {% if datos_vehiculo.tipo == 'auto' %}selected{% endif %}>Auto</option>
-                <option value="camioneta" {% if datos_vehiculo.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
-                <option value="furgon" {% if datos_vehiculo.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
+                <option value="furgon" selected>Furgón</option>
               </select>
             </div>
             <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ datos_vehiculo.marca|default:'' }}" placeholder="Ej: Renault"/></div>
@@ -876,10 +873,7 @@
             <div class="field">
               <label>Tipo de vehículo *</label>
               <select name="tipo">
-                <option value="moto" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'moto' %}selected{% endif %}>Moto</option>
-                <option value="auto" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'auto' %}selected{% endif %}>Auto</option>
-                <option value="camioneta" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'camioneta' %}selected{% endif %}>Camioneta</option>
-                <option value="furgon" {% if datos_vehiculo_editar.tipo|default:vehiculo_editar.tipo == 'furgon' %}selected{% endif %}>Furgón</option>
+                <option value="furgon" selected>Furgón</option>
               </select>
             </div>
             <div class="field"><label>Marca</label><input type="text" name="marca" value="{{ datos_vehiculo_editar.marca|default:vehiculo_editar.marca }}"/></div>
