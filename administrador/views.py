@@ -1,15 +1,21 @@
 from datetime import datetime, timedelta
 
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho, LogAuditoria, SolicitudCancelacion
+from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho, LogAuditoria, SolicitudCancelacion, Consulta
 from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, EditarVehiculoForm
 from core.notificaciones import (
     notificar_recibo_pago, notificar_cambio_estado, notificar_reclamo_actualizado,
+    notificar_pago_rechazado, notificar_consulta_respondida, notificar_solicitud_cancelacion_rechazada,
 )
 
 MESES = [
@@ -42,6 +48,27 @@ def _contexto_dashboard():
         'incidencias': Incidencia.objects.select_related('envio', 'envio__destinatario', 'registrado_por').order_by('-fecha'),
         'reclamos': Reclamo.objects.select_related('envio', 'cliente').order_by('-fecha_creacion'),
         'solicitudes_cancelacion_pendientes': SolicitudCancelacion.objects.filter(estado='pendiente').select_related('envio', 'cliente').order_by('fecha_creacion'),
+        'solicitudes_cancelacion_resueltas': SolicitudCancelacion.objects.exclude(estado='pendiente').select_related('envio', 'cliente', 'resuelto_por').order_by('-fecha_resolucion')[:15],
+        'consultas': Consulta.objects.select_related('cliente').order_by('estado', '-fecha_creacion'),
+        'consultas_sin_responder': Consulta.objects.filter(estado='nueva').count(),
+        'parametros_sistema': [
+            ('Capacidad del camión Buenos Aires → Santiago', f'{Despacho.CAPACIDAD_MAX_PESO_KG} kg',
+             'Al superarla, el próximo envío abre un camión nuevo.'),
+            ('Capacidad del furgón de reparto por zona', f'{Vehiculo.CAPACIDAD_MAX_PESO_KG} kg',
+             'Lo que no entra espera a la próxima salida de la zona.'),
+            ('Intentos de entrega por envío', str(Envio.MAX_INTENTOS_ENTREGA),
+             'Tras el último intento fallido, el envío queda retenido en la sucursal.'),
+            ('Retención en sucursal', f'{Envio.UMBRAL_RETENCION_DIAS} días',
+             'Pasado ese plazo, el envío se devuelve solo a Buenos Aires.'),
+            ('Alerta de envío demorado', f'más de {Envio.UMBRAL_DEMORA_DIAS} días sin cambios',
+             'El envío se marca como “Demorado” en los paneles.'),
+            ('Alerta de reclamo demorado', f'más de {Reclamo.UMBRAL_DEMORA_DIAS} días sin respuesta',
+             'El reclamo se marca como “Demorado” hasta que se gestione.'),
+            ('Zonas de reparto', ', '.join(etiqueta for _, etiqueta in Envio.ZONA_CHOICES),
+             'Se asignan según la dirección de entrega de cada envío.'),
+        ],
+        'mail_activo': 'smtp' in settings.EMAIL_BACKEND,
+        'mail_remitente': settings.DEFAULT_FROM_EMAIL,
         'logs_auditoria': LogAuditoria.objects.select_related(
             'realizado_por', 'usuario_afectado', 'pago_afectado', 'pago_afectado__envio', 'envio_afectado'
         ),
@@ -358,10 +385,11 @@ def cancelar_envio_view(request, envio_id):
 
 @login_required
 def resolver_solicitud_cancelacion_view(request, solicitud_id):
-    """El administrador autoriza un pedido de cancelación hecho por el
-    cliente. No existe un "rechazar": como la solicitud solo se puede pedir
-    mientras el envío sigue pendiente (nunca salió de Buenos Aires), no hay
-    ningún costo hundido que justifique negarla — el admin solo confirma."""
+    """El administrador aprueba o rechaza un pedido de cancelación hecho por el
+    cliente (`decision` = 'aprobar' | 'rechazar'). Aprobar pasa el envío a
+    cancelado; rechazar lo deja como estaba y le avisa al cliente, con el
+    motivo si el administrador lo escribió. Solo se resuelve mientras el
+    envío siga pendiente."""
     if request.user.rol != 'admin':
         return redirect('inicio')
     try:
@@ -372,24 +400,41 @@ def resolver_solicitud_cancelacion_view(request, solicitud_id):
 
     if request.method == 'POST':
         envio = solicitud.envio
-        if envio.estado != 'pendiente':
-            messages.error(request, f'{envio.codigo} ya no está pendiente (estado actual: {envio.get_estado_display()}) — no se puede cancelar.')
-            return redirect('admin_dashboard')
+        decision = request.POST.get('decision')
+        motivo = (request.POST.get('respuesta') or '').strip()
 
-        tenia_pago = envio.pagos.filter(anulado=False, verificado=True).exists()
-        envio.estado = 'cancelado'
-        envio.save()
+        if decision == 'aprobar':
+            if envio.estado != 'pendiente':
+                messages.error(request, f'{envio.codigo} ya no está pendiente (estado actual: {envio.get_estado_display()}) — no se puede cancelar.')
+                return redirect('admin_dashboard')
 
-        solicitud.estado = 'aprobada'
-        solicitud.resuelto_por = request.user
-        solicitud.fecha_resolucion = timezone.now()
-        solicitud.save()
+            tenia_pago = envio.pagos.filter(anulado=False, verificado=True).exists()
+            envio.estado = 'cancelado'
+            envio.save()
 
-        notificar_cambio_estado(envio)
-        if tenia_pago:
-            messages.warning(request, f'{envio.codigo} cancelado. Atención: este envío ya tenía un pago confirmado — gestioná la devolución del dinero manualmente.')
+            solicitud.estado = 'aprobada'
+            solicitud.resuelto_por = request.user
+            solicitud.fecha_resolucion = timezone.now()
+            solicitud.save()
+
+            notificar_cambio_estado(envio)
+            if tenia_pago:
+                messages.warning(request, f'{envio.codigo} cancelado. Atención: este envío ya tenía un pago confirmado — gestioná la devolución del dinero manualmente.')
+            else:
+                messages.success(request, f'✓ {envio.codigo} cancelado. Se avisó al cliente por email.')
+
+        elif decision == 'rechazar':
+            solicitud.estado = 'rechazada'
+            solicitud.respuesta_admin = motivo
+            solicitud.resuelto_por = request.user
+            solicitud.fecha_resolucion = timezone.now()
+            solicitud.save()
+
+            notificar_solicitud_cancelacion_rechazada(solicitud)
+            messages.success(request, f'Rechazaste el pedido de cancelación de {envio.codigo}. El envío sigue su curso y se avisó al cliente por email.')
+
         else:
-            messages.success(request, f'✓ {envio.codigo} cancelado. Se avisó al cliente por email.')
+            messages.error(request, 'No se indicó si aprobar o rechazar la cancelación.')
 
     return redirect('admin_dashboard')
 
@@ -437,6 +482,87 @@ def gestionar_reclamo_view(request, reclamo_id):
 
     contexto = _contexto_dashboard()
     contexto.update({'reclamo_gestionar': reclamo, 'mostrar_gestionar_reclamo': True})
+    return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def configuracion_view(request):
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    contexto = _contexto_dashboard()
+    contexto['mostrar_configuracion'] = True
+    return render(request, 'administrador/dashboard.html', contexto)
+
+
+@login_required
+def actualizar_perfil_admin_view(request):
+    """El administrador edita sus propios datos de contacto."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip()
+        try:
+            if email:
+                validate_email(email)
+        except ValidationError:
+            messages.error(request, 'El email ingresado no es válido.')
+            return redirect('admin_configuracion')
+        u = request.user
+        u.first_name = (request.POST.get('first_name') or '').strip()
+        u.last_name = (request.POST.get('last_name') or '').strip()
+        u.telefono = (request.POST.get('telefono') or '').strip()
+        u.email = email
+        u.save(update_fields=['first_name', 'last_name', 'telefono', 'email'])
+        messages.success(request, '✓ Tus datos se actualizaron correctamente.')
+    return redirect('admin_configuracion')
+
+
+@login_required
+def cambiar_password_admin_view(request):
+    """El administrador cambia su propia contraseña (pide la actual, valida la
+    nueva y mantiene la sesión abierta)."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            usuario = form.save()
+            update_session_auth_hash(request, usuario)
+            messages.success(request, '✓ Contraseña actualizada. Usá la nueva la próxima vez que inicies sesión.')
+        else:
+            messages.error(request, next(iter(form.errors.values()))[0])
+    return redirect('admin_configuracion')
+
+
+@login_required
+def responder_consulta_view(request, consulta_id):
+    """El administrador lee una consulta de un cliente y la responde. La
+    respuesta se guarda, se muestra en el panel del cliente y se manda por mail."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        consulta = Consulta.objects.select_related('cliente').get(id=consulta_id)
+    except Consulta.DoesNotExist:
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        respuesta = (request.POST.get('respuesta') or '').strip()
+        if not respuesta:
+            messages.error(request, 'Escribí la respuesta antes de enviarla.')
+            contexto = _contexto_dashboard()
+            contexto.update({'consulta_responder': consulta, 'mostrar_responder_consulta': True})
+            return render(request, 'administrador/dashboard.html', contexto)
+        consulta.respuesta = respuesta
+        consulta.estado = 'respondida'
+        consulta.respondida_por = request.user
+        consulta.fecha_respuesta = timezone.now()
+        consulta.save()
+        notificar_consulta_respondida(consulta)
+        messages.success(request, f'✓ Consulta N° {consulta.id} respondida. Se avisó al cliente por email.')
+        return redirect('admin_dashboard')
+
+    contexto = _contexto_dashboard()
+    contexto.update({'consulta_responder': consulta, 'mostrar_responder_consulta': True})
     return render(request, 'administrador/dashboard.html', contexto)
 
 
@@ -490,7 +616,8 @@ def anular_pago_view(request, pago_id):
                 if era_verificado:
                     messages.success(request, f'Pago de {pago.envio.codigo} anulado.')
                 else:
-                    messages.warning(request, f'Comprobante de {pago.envio.codigo} rechazado: la transferencia no se confirmó como recibida.')
+                    notificar_pago_rechazado(pago)
+                    messages.warning(request, f'Comprobante de {pago.envio.codigo} rechazado: la transferencia no se confirmó como recibida. Se avisó al cliente por email.')
             else:
                 messages.error(request, 'No se puede anular el pago de un envío ya entregado.')
         except Pago.DoesNotExist:

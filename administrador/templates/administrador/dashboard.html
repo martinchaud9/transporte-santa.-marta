@@ -26,6 +26,7 @@
     .nav-item:hover { background: rgba(255,255,255,.08); color: white; }
     .nav-item.active { background: linear-gradient(135deg, var(--blue), var(--blue-light)); color: white; box-shadow: 0 4px 14px rgba(21,101,192,.4); }
     .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 8px; font-size: .7rem; font-weight: 700; }
     .sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.08); }
     .user-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.07); }
     .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-bright)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: white; flex-shrink: 0; }
@@ -149,6 +150,12 @@
   <a href="#" class="nav-item" onclick="showPage('reclamos')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>Reclamos
   </a>
+  <a href="#" class="nav-item" onclick="showPage('cancelaciones')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>Cancelaciones{% if solicitudes_cancelacion_pendientes %}<span class="nav-count">{{ solicitudes_cancelacion_pendientes|length }}</span>{% endif %}
+  </a>
+  <a href="#" class="nav-item" onclick="showPage('consultas')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>Consultas{% if consultas_sin_responder %}<span class="nav-count">{{ consultas_sin_responder }}</span>{% endif %}
+  </a>
   <a href="#" class="nav-item" onclick="showPage('incidencias')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>Incidencias
   </a>
@@ -158,7 +165,7 @@
   <a href="#" class="nav-item" onclick="showPage('reportes')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>Reportes
   </a>
-  <a href="#" class="nav-item">
+  <a href="#" class="nav-item" onclick="showPage('configuracion')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Configuración
   </a>
 
@@ -606,6 +613,158 @@
       </div>
     </div>
 
+    <!-- CANCELACIONES -->
+    <div id="page-cancelaciones" style="display:none;">
+      <div class="section-header"><div class="section-title">Solicitudes de cancelación</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:16px;">
+        Pedidos de clientes para cancelar un envío que todavía no salió de Buenos Aires. Al aprobar, el envío pasa a Cancelado y se le avisa al cliente por mail.
+      </p>
+      <div class="table-card" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>N°</th><th>Envío</th><th>Cliente</th><th>Motivo</th><th>Fecha</th><th>Acción</th></tr></thead>
+          <tbody>
+            {% for sol in solicitudes_cancelacion_pendientes %}
+            <tr>
+              <td><strong>#{{ sol.id }}</strong></td>
+              <td>{{ sol.envio.codigo }}</td>
+              <td>{{ sol.cliente.get_full_name|default:sol.cliente.username }}</td>
+              <td>{{ sol.motivo|default:"Sin motivo especificado"|truncatechars:70 }}</td>
+              <td>{{ sol.fecha_creacion|date:"d/m/Y H:i" }}</td>
+              <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                <form method="POST" action="{% url 'resolver_solicitud_cancelacion' sol.id %}" onsubmit="return confirm('¿Aprobar la cancelación de este envío? El cliente va a recibir un email avisándole.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="decision" value="aprobar"/>
+                  <button type="submit" class="action-btn" style="color:#dc2626;border-color:#fecaca;">Aprobar cancelación</button>
+                </form>
+                <form method="POST" action="{% url 'resolver_solicitud_cancelacion' sol.id %}" onsubmit="var m = prompt('Motivo del rechazo (opcional, se le informa al cliente):'); if (m === null) return false; this.respuesta.value = m; return true;">
+                  {% csrf_token %}
+                  <input type="hidden" name="decision" value="rechazar"/>
+                  <input type="hidden" name="respuesta" value=""/>
+                  <button type="submit" class="action-btn">Rechazar</button>
+                </form>
+                <a href="{% url 'detalle_envio' sol.envio.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Ver envío</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay solicitudes de cancelación pendientes</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="section-header"><div class="section-title">Resueltas recientemente</div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>N°</th><th>Envío</th><th>Cliente</th><th>Resultado</th><th>Resuelta por</th><th>Fecha</th></tr></thead>
+          <tbody>
+            {% for sol in solicitudes_cancelacion_resueltas %}
+            <tr>
+              <td><strong>#{{ sol.id }}</strong></td>
+              <td>{{ sol.envio.codigo }}</td>
+              <td>{{ sol.cliente.get_full_name|default:sol.cliente.username }}</td>
+              <td><span class="badge {% if sol.estado == 'aprobada' %}badge-entregado{% else %}badge-reclamo{% endif %}">{{ sol.get_estado_display }}</span>{% if sol.respuesta_admin %}<div style="font-size:.72rem;color:var(--gray);margin-top:3px;">{{ sol.respuesta_admin|truncatechars:50 }}</div>{% endif %}</td>
+              <td>{{ sol.resuelto_por.get_full_name|default:sol.resuelto_por.username|default:"—" }}</td>
+              <td>{{ sol.fecha_resolucion|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">Todavía no se resolvió ninguna solicitud</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONSULTAS -->
+    <div id="page-consultas" style="display:none;">
+      <div class="section-header"><div class="section-title">Consultas de clientes</div></div>
+      <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:16px;">
+        Mensajes que los clientes mandan desde la pestaña Contacto. La respuesta les llega por mail y la ven en su panel.
+      </p>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>N°</th><th>Cliente</th><th>Motivo</th><th>Mensaje</th><th>Fecha</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            {% for c in consultas %}
+            <tr>
+              <td><strong>#{{ c.id }}</strong></td>
+              <td>{{ c.cliente.get_full_name|default:c.cliente.username }}</td>
+              <td>{{ c.get_motivo_display }}</td>
+              <td>{{ c.mensaje|truncatechars:70 }}</td>
+              <td>{{ c.fecha_creacion|date:"d/m/Y H:i" }}</td>
+              <td><span class="badge {% if c.estado == 'nueva' %}badge-reclamo{% else %}badge-entregado{% endif %}">{{ c.get_estado_display }}</span></td>
+              <td><a href="{% url 'responder_consulta' c.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">{% if c.estado == 'nueva' %}Responder{% else %}Ver / editar{% endif %}</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align:center;color:var(--gray);padding:20px;">No hay consultas de clientes</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN -->
+    <div id="page-configuracion" style="display:none;">
+      <div class="section-header"><div class="section-title">Configuración</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start;">
+
+        <div style="background:white;border-radius:14px;padding:26px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:4px;">Mi cuenta</h3>
+          <p style="font-size:.8rem;color:var(--gray);margin-bottom:16px;">Usuario: <strong>{{ user.username }}</strong> · Rol: Administrador</p>
+          <form method="POST" action="{% url 'admin_actualizar_perfil' %}">
+            {% csrf_token %}
+            <div class="field-group">
+              <div class="field"><label>Nombre</label><input type="text" name="first_name" value="{{ user.first_name }}"/></div>
+              <div class="field"><label>Apellido</label><input type="text" name="last_name" value="{{ user.last_name }}"/></div>
+            </div>
+            <div class="field-group">
+              <div class="field"><label>Email</label><input type="email" name="email" value="{{ user.email }}"/></div>
+              <div class="field"><label>Teléfono</label><input type="text" name="telefono" value="{{ user.telefono }}"/></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Guardar datos</button></div>
+          </form>
+        </div>
+
+        <div style="background:white;border-radius:14px;padding:26px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:4px;">Cambiar contraseña</h3>
+          <p style="font-size:.8rem;color:var(--gray);margin-bottom:16px;">Ingresá la actual y la nueva. La sesión sigue abierta después de cambiarla.</p>
+          <form method="POST" action="{% url 'admin_cambiar_password' %}">
+            {% csrf_token %}
+            <div class="field"><label>Contraseña actual</label><input type="password" name="old_password" required autocomplete="current-password"/></div>
+            <div class="field-group">
+              <div class="field"><label>Contraseña nueva</label><input type="password" name="new_password1" required autocomplete="new-password"/></div>
+              <div class="field"><label>Repetir la nueva</label><input type="password" name="new_password2" required autocomplete="new-password"/></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Cambiar contraseña</button></div>
+          </form>
+        </div>
+
+        <div style="background:white;border-radius:14px;padding:26px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:4px;">Avisos por email</h3>
+          <p style="font-size:.8rem;color:var(--gray);margin-bottom:14px;">Los clientes reciben un mail en cada cambio de estado, pago, reclamo, consulta y cancelación.</p>
+          {% if mail_activo %}
+          <span class="badge badge-entregado">Activo</span>
+          <p style="font-size:.85rem;margin-top:10px;">Se envían desde <strong>{{ mail_remitente }}</strong>.</p>
+          {% else %}
+          <span class="badge badge-pendiente">Modo prueba</span>
+          <p style="font-size:.85rem;margin-top:10px;">Las credenciales de Gmail no están cargadas: los mails no se envían, se muestran en la terminal del servidor.</p>
+          {% endif %}
+        </div>
+
+        <div style="background:white;border-radius:14px;padding:26px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);">
+          <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin-bottom:4px;">Parámetros del sistema</h3>
+          <p style="font-size:.8rem;color:var(--gray);margin-bottom:14px;">Reglas de negocio vigentes (solo lectura).</p>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            {% for nombre, valor, detalle in parametros_sistema %}
+            <div style="border-bottom:1px solid var(--gray-light);padding-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;gap:12px;font-size:.85rem;"><span>{{ nombre }}</span><strong style="text-align:right;">{{ valor }}</strong></div>
+              <div style="font-size:.74rem;color:var(--gray);margin-top:2px;">{{ detalle }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- INCIDENCIAS -->
     <div id="page-incidencias" style="display:none;">
       <div class="section-header">
@@ -707,6 +866,35 @@
           <div style="display:flex;gap:12px;justify-content:flex-end;">
             <button type="button" class="btn btn-outline" onclick="showPage('reclamos')">Cancelar</button>
             <button type="submit" class="btn btn-primary">Guardar gestión</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if mostrar_responder_consulta %}
+    <div id="page-responder-consulta-{{ consulta_responder.id }}" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Consulta #{{ consulta_responder.id }}</div>
+        <button class="btn btn-outline" onclick="showPage('consultas')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:700px;">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:.875rem;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid var(--gray-light);">
+          <div><strong>Cliente:</strong> {{ consulta_responder.cliente.get_full_name|default:consulta_responder.cliente.username }} ({{ consulta_responder.cliente.email|default:"sin email" }})</div>
+          <div><strong>Motivo:</strong> {{ consulta_responder.get_motivo_display }}</div>
+          <div><strong>Fecha:</strong> {{ consulta_responder.fecha_creacion|date:"d/m/Y H:i" }}</div>
+          <div style="margin-top:8px;"><strong>Mensaje del cliente:</strong></div>
+          <div style="background:var(--off-white);border-radius:9px;padding:12px 14px;line-height:1.6;">{{ consulta_responder.mensaje }}</div>
+        </div>
+        <form method="POST" action="{% url 'responder_consulta' consulta_responder.id %}">
+          {% csrf_token %}
+          <div class="field" style="margin-bottom:20px;">
+            <label>Respuesta al cliente *</label>
+            <textarea name="respuesta" rows="5" required style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-light);border-radius:9px;font-family:'Barlow',sans-serif;font-size:.9rem;outline:none;" placeholder="Escribí la respuesta para el cliente...">{{ consulta_responder.respuesta }}</textarea>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('consultas')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Enviar respuesta</button>
           </div>
         </form>
       </div>
@@ -938,10 +1126,19 @@
           <div style="margin-top:18px;background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:14px;">
             <div style="font-weight:700;color:#a16207;font-size:.85rem;margin-bottom:4px;">⏳ El cliente pidió cancelar este envío</div>
             <div style="font-size:.8rem;color:var(--gray);margin-bottom:12px;">{{ solicitud_cancelacion_pendiente.motivo|default:"Sin motivo especificado" }}</div>
-            <form method="POST" action="{% url 'resolver_solicitud_cancelacion' solicitud_cancelacion_pendiente.id %}" onsubmit="return confirm('¿Aprobar la cancelación de este envío? El cliente va a recibir un email avisándole.');">
-              {% csrf_token %}
-              <button type="submit" class="btn" style="width:100%;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Aprobar cancelación</button>
-            </form>
+            <div style="display:flex;gap:10px;">
+              <form method="POST" action="{% url 'resolver_solicitud_cancelacion' solicitud_cancelacion_pendiente.id %}" onsubmit="return confirm('¿Aprobar la cancelación de este envío? El cliente va a recibir un email avisándole.');" style="flex:1;">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="aprobar"/>
+                <button type="submit" class="btn" style="width:100%;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;">Aprobar cancelación</button>
+              </form>
+              <form method="POST" action="{% url 'resolver_solicitud_cancelacion' solicitud_cancelacion_pendiente.id %}" onsubmit="var m = prompt('Motivo del rechazo (opcional, se le informa al cliente):'); if (m === null) return false; this.respuesta.value = m; return true;" style="flex:1;">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="rechazar"/>
+                <input type="hidden" name="respuesta" value=""/>
+                <button type="submit" class="btn btn-outline" style="width:100%;">Rechazar</button>
+              </form>
+            </div>
           </div>
           {% elif envio_detalle.estado == 'pendiente' %}
           <form method="POST" action="{% url 'cancelar_envio' envio_detalle.id %}" onsubmit="return confirm('¿Cancelar este envío? El cliente va a recibir un email avisándole.');" style="margin-top:18px;">
@@ -1036,17 +1233,20 @@
     document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
     const target = document.getElementById('page-' + page);
     if (target) target.style.display = 'block';
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle('active', (el.getAttribute('onclick') || '').includes("showPage('" + page + "')"));
+    });
     const titles = {
       dashboard:'Dashboard', envios:'Gestión de Envíos', clientes:'Clientes',
       pagos:'Pagos', empleados:'Empleados', 'nuevo-empleado':'Registrar Empleado',
       vehiculos:'Vehículos', 'nuevo-vehiculo':'Registrar Vehículo',
-      reclamos:'Reclamos', reportes:'Reportes', camiones:'Camiones', incidencias:'Incidencias', auditoria:'Auditoría'
+      reclamos:'Reclamos', cancelaciones:'Solicitudes de cancelación', consultas:'Consultas', configuracion:'Configuración', reportes:'Reportes', camiones:'Camiones', incidencias:'Incidencias', auditoria:'Auditoría'
     };
     let titulo;
     if (page.startsWith('editar-vehiculo-')) titulo = 'Editar Vehículo';
     else if (page.startsWith('detalle-envio-')) titulo = 'Detalle del Envío';
     else if (page.startsWith('gestionar-reclamo-')) titulo = 'Gestionar Reclamo';
+    else if (page.startsWith('responder-consulta-')) titulo = 'Responder Consulta';
     else titulo = titles[page] || 'Panel';
     document.getElementById('page-title').textContent = titulo;
   }
@@ -1064,8 +1264,14 @@
   {% if mostrar_detalle_envio %}
   showPage('detalle-envio-{{ envio_detalle.id }}');
   {% endif %}
+  {% if mostrar_configuracion %}
+  showPage('configuracion');
+  {% endif %}
   {% if mostrar_gestionar_reclamo %}
   showPage('gestionar-reclamo-{{ reclamo_gestionar.id }}');
+  {% endif %}
+  {% if mostrar_responder_consulta %}
+  showPage('responder-consulta-{{ consulta_responder.id }}');
   {% endif %}
   {% if mostrar_nuevo_empleado %}
   showPage('nuevo-empleado');

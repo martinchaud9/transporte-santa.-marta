@@ -15,6 +15,10 @@ urlpatterns = [
     path('envios/<int:envio_id>/devuelto/', views.marcar_devuelto_view, name='marcar_devuelto'),
     path('solicitudes-cancelacion/<int:solicitud_id>/resolver/', views.resolver_solicitud_cancelacion_view, name='resolver_solicitud_cancelacion'),
     path('reclamos/<int:reclamo_id>/gestionar/', views.gestionar_reclamo_view, name='gestionar_reclamo'),
+    path('configuracion/', views.configuracion_view, name='admin_configuracion'),
+    path('configuracion/perfil/', views.actualizar_perfil_admin_view, name='admin_actualizar_perfil'),
+    path('configuracion/password/', views.cambiar_password_admin_view, name='admin_cambiar_password'),
+    path('consultas/<int:consulta_id>/responder/', views.responder_consulta_view, name='responder_consulta'),
     path('pagos/<int:pago_id>/anular/', views.anular_pago_view, name='anular_pago'),
     path('pagos/<int:pago_id>/confirmar/', views.confirmar_pago_view, name='confirmar_pago'),
 ]

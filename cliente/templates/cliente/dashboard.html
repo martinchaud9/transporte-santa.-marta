@@ -331,6 +331,31 @@
         </div>
       </form>
     </div>
+
+    <div class="section-title" style="margin-top:32px;">Mis reclamos</div>
+    {% for reclamo in reclamos %}
+    <div class="envio-card" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div class="envio-codigo">Reclamo N° {{ reclamo.id }} — {{ reclamo.envio.codigo }}</div>
+          <div class="envio-detail"><strong>{{ reclamo.get_tipo_display }}</strong> · {{ reclamo.fecha_creacion|date:"d/m/Y" }}</div>
+        </div>
+        <span class="badge" style="{% if reclamo.estado == 'nuevo' %}background:#fef9c3;color:#a16207;{% elif reclamo.estado == 'en_proceso' %}background:#dbeafe;color:#1d4ed8;{% else %}background:#dcfce7;color:#15803d;{% endif %}">
+          {% if reclamo.estado == 'nuevo' %}Recibido{% else %}{{ reclamo.get_estado_display }}{% endif %}
+        </span>
+      </div>
+      <div class="envio-detail" style="margin-top:10px;"><strong>Tu reclamo:</strong> {{ reclamo.descripcion }}</div>
+      {% if reclamo.respuesta %}
+      <div style="margin-top:10px;background:var(--off-white);border-radius:9px;padding:12px 14px;font-size:.85rem;line-height:1.6;">
+        <strong>Respuesta de la sucursal:</strong> {{ reclamo.respuesta }}
+      </div>
+      {% else %}
+      <div class="envio-detail" style="margin-top:10px;font-style:italic;">La sucursal todavía no respondió. Te avisamos por mail cuando haya novedades.</div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state"><p>No generaste ningún reclamo.</p></div>
+    {% endfor %}
   </div>
 
   <!-- CONTACTO -->
@@ -338,23 +363,46 @@
     <div class="section-title">Contactar a la sucursal</div>
     <div class="form-card">
       <p style="font-size:.85rem;color:var(--gray);margin-bottom:20px;line-height:1.6;">Usá este formulario para consultas generales. Para problemas con un envío específico, usá la sección <strong>Reclamos</strong>.</p>
-      <div class="field">
-        <label>Motivo de la consulta *</label>
-        <select>
-          <option>Consulta sobre un envío</option>
-          <option>Información sobre tarifas</option>
-          <option>Cambio de modalidad de entrega</option>
-          <option>Otro</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Mensaje *</label>
-        <textarea id="contacto-mensaje" placeholder="Escribí tu consulta aquí..."></textarea>
-      </div>
-      <div style="display:flex;gap:12px;justify-content:flex-end;">
-        <button class="btn btn-primary" onclick="enviarContacto()">Enviar mensaje</button>
-      </div>
+      <form method="POST" action="{% url 'cliente_consulta' %}">
+        {% csrf_token %}
+        <div class="field">
+          <label>Motivo de la consulta *</label>
+          <select name="motivo" required>
+            {% for clave, etiqueta in motivos_consulta %}
+            <option value="{{ clave }}">{{ etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Mensaje *</label>
+          <textarea name="mensaje" required placeholder="Escribí tu consulta aquí..."></textarea>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button type="submit" class="btn btn-primary">Enviar mensaje</button>
+        </div>
+      </form>
     </div>
+
+    <div class="section-title" style="margin-top:32px;">Mis consultas</div>
+    {% for consulta in consultas %}
+    <div class="envio-card" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div class="envio-codigo">Consulta N° {{ consulta.id }}</div>
+          <div class="envio-detail"><strong>{{ consulta.get_motivo_display }}</strong> · {{ consulta.fecha_creacion|date:"d/m/Y H:i" }}</div>
+        </div>
+        <span class="badge" style="{% if consulta.estado == 'nueva' %}background:#fef9c3;color:#a16207;{% else %}background:#dcfce7;color:#15803d;{% endif %}">{{ consulta.get_estado_display }}</span>
+      </div>
+      <div class="envio-detail" style="margin-top:10px;"><strong>Tu mensaje:</strong> {{ consulta.mensaje }}</div>
+      {% if consulta.respuesta %}
+      <div style="margin-top:10px;background:var(--off-white);border-radius:9px;padding:12px 14px;font-size:.85rem;line-height:1.6;">
+        <strong>Respuesta de la sucursal:</strong> {{ consulta.respuesta }}
+      </div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state"><p>Todavía no enviaste ninguna consulta.</p></div>
+    {% endfor %}
   </div>
 
   <!-- MIS DATOS -->
@@ -586,18 +634,11 @@
     document.getElementById('pago-campos-transferencia').style.display = esTarjeta ? 'none' : 'block';
   }
 
-  function enviarContacto() {
-    const campo = document.getElementById('contacto-mensaje');
-    if (!campo.value.trim()) {
-      alert('Debes escribir un mensaje antes de enviar');
-      return;
-    }
-    alert('Mensaje enviado. Te responderemos a la brevedad.');
-    campo.value = '';
-  }
-
   {% if mostrar_reclamos %}
   showTab('reclamos');
+  {% endif %}
+  {% if tab_inicial %}
+  showTab('{{ tab_inicial }}');
   {% endif %}
 </script>
 </body>

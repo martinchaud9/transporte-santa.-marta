@@ -129,3 +129,39 @@ def notificar_demora(envio):
         f'Tu paquete {envio.codigo} lleva más de {envio.UMBRAL_DEMORA_DIAS} días sin actualizar su estado. Estamos revisando la demora.',
         envio.destinatario.email,
     )
+
+
+def notificar_pago_rechazado(pago):
+    envio = pago.envio
+    enviar(
+        f'No pudimos confirmar tu pago — {envio.codigo}',
+        (
+            f'Revisamos el comprobante de tu transferencia por ${pago.monto} para el envío {envio.codigo} '
+            'y no pudimos confirmar que el dinero haya llegado a la cuenta de Santa Marta, por eso fue rechazado.\n\n'
+            f'El envío sigue con el pago pendiente. Podés volver a pagarlo desde “Mis envíos”, '
+            'subiendo un comprobante correcto o abonando con tarjeta.'
+        ),
+        envio.destinatario.email,
+    )
+
+
+def notificar_consulta_respondida(consulta):
+    lineas = [
+        f'Respondimos tu consulta N° {consulta.id} ({consulta.get_motivo_display()}).',
+        '',
+        'Tu mensaje:',
+        consulta.mensaje,
+        '',
+        'Nuestra respuesta:',
+        consulta.respuesta,
+    ]
+    enviar(f'Respuesta a tu consulta N° {consulta.id}', '\n'.join(lineas), consulta.cliente.email)
+
+
+def notificar_solicitud_cancelacion_rechazada(solicitud):
+    envio = solicitud.envio
+    lineas = [f'Tu solicitud de cancelación N° {solicitud.id} para el envío {envio.codigo} fue rechazada.']
+    if solicitud.respuesta_admin:
+        lineas += ['', 'Motivo:', solicitud.respuesta_admin]
+    lineas += ['', 'El envío sigue su curso normal. Si lo necesitás, podés volver a pedir la cancelación mientras siga pendiente.']
+    enviar(f'No se pudo cancelar tu envío {envio.codigo}', '\n'.join(lineas), envio.destinatario.email)

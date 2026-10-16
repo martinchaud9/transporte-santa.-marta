@@ -343,6 +343,37 @@ class SolicitudCancelacion(models.Model):
         return f"Solicitud de cancelación #{self.id} — {self.envio.codigo}"
 
 
+class Consulta(models.Model):
+    """Mensaje general que un cliente le manda a la sucursal desde la pestaña
+    Contacto (para problemas con un envío puntual existe Reclamo). El
+    administrador lo ve en su pestaña Consultas y lo responde; la respuesta
+    le llega al cliente por mail y queda visible en su panel."""
+    MOTIVO_CHOICES = [
+        ('envio', 'Consulta sobre un envío'),
+        ('tarifas', 'Información sobre tarifas'),
+        ('modalidad', 'Cambio de modalidad de entrega'),
+        ('otro', 'Otro'),
+    ]
+    ESTADO_CHOICES = [
+        ('nueva', 'Sin responder'),
+        ('respondida', 'Respondida'),
+    ]
+
+    cliente = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='consultas')
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
+    mensaje = models.TextField()
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='nueva')
+    respuesta = models.TextField(blank=True)
+    respondida_por = models.ForeignKey(
+        Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='consultas_respondidas'
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_respuesta = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Consulta #{self.id} — {self.cliente.username}"
+
+
 class LogAuditoria(models.Model):
     """Registro de acciones administrativas sensibles e irreversibles (bajas
     de cuentas, anulación de pagos, extravíos), para poder responder "quién

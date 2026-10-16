@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from core.models import Envio, Reclamo, Pago, SolicitudCancelacion
+from core.models import Envio, Reclamo, Pago, SolicitudCancelacion, Consulta
 from core.forms import ModificarDatosClienteForm
 from core.notificaciones import (
     notificar_recibo_pago, notificar_comprobante_recibido,
@@ -10,9 +11,24 @@ from core.notificaciones import (
 
 COMPROBANTE_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 
+TABS_VALIDAS = ('mis-envios', 'historial', 'reclamos', 'contacto', 'mis-datos')
+
+
+def _volver_a(tab):
+    """Redirige al panel del cliente abriendo directamente la pestaña indicada."""
+    return redirect(f"{reverse('cliente_dashboard')}?tab={tab}")
+
+
 def _render_dashboard(request, **extra):
     envios = Envio.objects.filter(destinatario=request.user).order_by('-fecha_registro')
-    contexto = {'envios': envios}
+    tab = request.GET.get('tab')
+    contexto = {
+        'envios': envios,
+        'reclamos': Reclamo.objects.filter(cliente=request.user).select_related('envio').order_by('-fecha_creacion'),
+        'consultas': Consulta.objects.filter(cliente=request.user).order_by('-fecha_creacion'),
+        'motivos_consulta': Consulta.MOTIVO_CHOICES,
+        'tab_inicial': tab if tab in TABS_VALIDAS else '',
+    }
     contexto.update(extra)
     return render(request, 'cliente/dashboard.html', contexto)
 
@@ -150,7 +166,26 @@ def generar_reclamo_view(request):
             tipo=tipo,
             descripcion=descripcion,
         )
-        messages.success(request, f'✓ Tu reclamo N° {reclamo.id} fue registrado. La sucursal lo va a revisar a la brevedad.')
+        messages.success(request, f'✓ Tu reclamo N° {reclamo.id} fue registrado. Podés seguir su estado acá abajo, en “Mis reclamos”.')
+        return _volver_a('reclamos')
+    return redirect('cliente_dashboard')
+
+
+@login_required
+def enviar_consulta_view(request):
+    """Consulta general a la sucursal (pestaña Contacto). Queda registrada para
+    que el administrador la vea en su panel y la responda."""
+    if request.user.rol != 'cliente':
+        return redirect('inicio')
+    if request.method == 'POST':
+        motivo = request.POST.get('motivo')
+        mensaje = (request.POST.get('mensaje') or '').strip()
+        if motivo not in dict(Consulta.MOTIVO_CHOICES) or not mensaje:
+            messages.error(request, 'Elegí un motivo y escribí tu mensaje antes de enviar la consulta.')
+            return _volver_a('contacto')
+        consulta = Consulta.objects.create(cliente=request.user, motivo=motivo, mensaje=mensaje)
+        messages.success(request, f'✓ Tu consulta N° {consulta.id} fue enviada. Te vamos a responder por mail y vas a ver la respuesta acá.')
+        return _volver_a('contacto')
     return redirect('cliente_dashboard')
 
 
