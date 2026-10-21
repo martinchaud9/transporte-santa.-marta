@@ -1,0 +1,1 @@
+{% if envio.tiene_plazo_de_retiro %}{% with dias=envio.dias_restantes_retiro %}<span class="badge" style="background:{% if dias <= 5 %}#fee2e2{% else %}#e0f2fe{% endif %};color:{% if dias <= 5 %}#dc2626{% else %}#0369a1{% endif %};">⏳ {% if dias == 0 %}Último día para retirar{% else %}{{ dias }} día{{ dias|pluralize }} para retirar{% endif %}</span>{% endwith %}{% endif %}

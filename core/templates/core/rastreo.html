@@ -160,7 +160,7 @@
         {% elif envio.estado == 'devuelto' %}
         <div class="nota-estado">Este envío fue devuelto a Casa Central en Buenos Aires porque no se retiró a tiempo. Comunicate con la sucursal para coordinar un nuevo envío.</div>
         {% elif envio.estado == 'retenido' %}
-        <div class="nota-estado">Este envío está retenido en la sucursal de Santiago del Estero: no se pudo entregar y está esperando que lo retiren con DNI.</div>
+        <div class="nota-estado">Este envío está retenido en la sucursal de Santiago del Estero: no se pudo entregar a domicilio y pasó a retiro en sucursal. Se retira con DNI y quedan {{ envio.dias_restantes_retiro }} día{{ envio.dias_restantes_retiro|pluralize }} para hacerlo antes de que se devuelva a Buenos Aires.</div>
         {% elif envio.estado == 'extraviado' %}
         <div class="nota-estado">Estamos investigando la ubicación de este envío. Comunicate con la sucursal para más información.</div>
         {% else %}
@@ -190,6 +190,9 @@
             <div class="step-label {% if envio.estado == 'entregado' %}done{% endif %}">Entregado</div>
           </div>
         </div>
+        {% if envio.tiene_plazo_de_retiro %}
+        <div class="nota-estado">Retiro en sucursal: pasá a buscarlo con tu DNI. Quedan {{ envio.dias_restantes_retiro }} día{{ envio.dias_restantes_retiro|pluralize }} antes de que se devuelva a Buenos Aires.</div>
+        {% endif %}
         {% if envio.estado == 'en_reparto' %}
         <div id="mapa-reparto" style="height:220px;border-radius:12px;margin-top:18px;background:var(--off-white);"></div>
         <div id="mapa-estado" style="font-size:.78rem;color:var(--gray);margin-top:8px;text-align:center;">Buscando la ubicación del reparto…</div>

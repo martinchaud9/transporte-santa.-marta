@@ -12,17 +12,31 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from core.models import Usuario, Envio, Vehiculo, Incidencia, Pago, Reclamo, Despacho, LogAuditoria, SolicitudCancelacion, Consulta
-from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, EditarVehiculoForm
+from core.forms import RegistroEmpleadoForm, RegistroVehiculoForm, EditarVehiculoForm, EditarEmpleadoForm
 from core.notificaciones import (
     notificar_recibo_pago, notificar_cambio_estado, notificar_reclamo_actualizado,
     notificar_pago_rechazado, notificar_consulta_respondida, notificar_solicitud_cancelacion_rechazada,
 )
+
+MENSAJE_SIN_DATOS = 'No hay datos disponibles para el período indicado.'
 
 MESES = [
     (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
     (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
     (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
 ]
+
+def _nombre(usuario):
+    return usuario.get_full_name() or usuario.username
+
+
+def _auditar(request, accion, detalle, **afectados):
+    """Deja constancia en la auditoría de una acción del administrador
+    (`afectados`: usuario_afectado / pago_afectado / envio_afectado)."""
+    LogAuditoria.objects.create(
+        accion=accion, realizado_por=request.user, detalle=detalle, **afectados
+    )
+
 
 def _contexto_dashboard():
     # Regla de negocio: un paquete retenido en sucursal más de
@@ -111,7 +125,13 @@ def registro_empleado_view(request):
     if request.method == 'POST':
         form = RegistroEmpleadoForm(request.POST)
         if form.is_valid():
-            form.save()
+            empleado = form.save()
+            _auditar(
+                request, 'alta_empleado',
+                f'Alta del empleado {_nombre(empleado)} (usuario {empleado.username}, DNI {empleado.dni}) '
+                f'por {_nombre(request.user)}.',
+                usuario_afectado=empleado,
+            )
             messages.success(request, '✓ Empleado registrado correctamente.')
             return redirect('admin_dashboard')
 
@@ -127,6 +147,56 @@ def registro_empleado_view(request):
         })
         return render(request, 'administrador/dashboard.html', contexto)
     return redirect('admin_dashboard')
+
+@login_required
+def editar_empleado_view(request, empleado_id):
+    """Modifica los datos de un empleado activo ya dado de alta."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        empleado = Usuario.objects.get(id=empleado_id, rol='empleado', is_active=True)
+    except Usuario.DoesNotExist:
+        messages.error(request, 'Ese empleado no existe o ya está deshabilitado.')
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        anteriores = {
+            'nombre': empleado.first_name, 'DNI': empleado.dni,
+            'correo': empleado.email, 'teléfono': empleado.telefono,
+        }
+        form = EditarEmpleadoForm(request.POST, instance=empleado)
+        if form.is_valid():
+            empleado = form.save()
+            nuevos = {
+                'nombre': empleado.first_name, 'DNI': empleado.dni,
+                'correo': empleado.email, 'teléfono': empleado.telefono,
+            }
+            cambios = [f'{campo}: "{anteriores[campo] or "—"}" → "{nuevos[campo] or "—"}"' for campo in nuevos if nuevos[campo] != anteriores[campo]]
+            if cambios:
+                _auditar(
+                    request, 'edicion_empleado',
+                    f'Datos de {_nombre(empleado)} modificados por {_nombre(request.user)} ({"; ".join(cambios)}).',
+                    usuario_afectado=empleado,
+                )
+                messages.success(request, f'✓ Datos de {_nombre(empleado)} actualizados.')
+            else:
+                messages.info(request, 'No se modificó ningún dato.')
+            return redirect('admin_dashboard')
+
+        error = next(iter(form.errors.values()))[0] if form.errors else 'Revisá los datos ingresados.'
+        contexto = _contexto_dashboard()
+        contexto.update({
+            'empleado_editar': Usuario.objects.get(id=empleado_id),
+            'error_empleado_editar': error,
+            'datos_empleado_editar': request.POST,
+            'mostrar_editar_empleado': True,
+        })
+        return render(request, 'administrador/dashboard.html', contexto)
+
+    contexto = _contexto_dashboard()
+    contexto.update({'empleado_editar': empleado, 'mostrar_editar_empleado': True})
+    return render(request, 'administrador/dashboard.html', contexto)
+
 
 @login_required
 def eliminar_empleado_view(request, empleado_id):
@@ -163,7 +233,13 @@ def registro_vehiculo_view(request):
     if request.method == 'POST':
         form = RegistroVehiculoForm(request.POST)
         if form.is_valid():
-            form.save()
+            vehiculo = form.save()
+            _auditar(
+                request, 'alta_vehiculo',
+                f'Alta del vehículo {vehiculo.patente} ({vehiculo.get_tipo_display()}) por {_nombre(request.user)}; '
+                f'empleado asignado: {_nombre(vehiculo.empleado) if vehiculo.empleado else "sin asignar"}.',
+                usuario_afectado=vehiculo.empleado,
+            )
             messages.success(request, '✓ Vehículo registrado correctamente.')
             return redirect('admin_dashboard')
 
@@ -184,40 +260,80 @@ def registro_vehiculo_view(request):
 
 def _calcular_reporte(request):
     """Calcula las métricas del reporte a partir de los parámetros GET
-    (tipo/anio/mes). Se usa tanto para mostrarlo en pantalla como para el PDF,
-    así ambos siempre muestran exactamente los mismos números."""
+    (tipo semanal | mensual | personalizado, con anio/mes o desde/hasta). Se
+    usa tanto para mostrarlo en pantalla como para el PDF, así ambos siempre
+    muestran exactamente los mismos números."""
     tipo = request.GET.get('tipo', 'semanal')
-    anio = request.GET.get('anio', '')
-    mes = request.GET.get('mes', '')
     ahora = timezone.now()
+    anio, mes = ahora.year, ahora.month
+    desde = hasta = None
+    error = ''
 
-    if tipo == 'mensual' and anio and mes:
-        anio, mes = int(anio), int(mes)
-        inicio = timezone.make_aware(datetime(anio, mes, 1))
-        if mes == 12:
-            fin = timezone.make_aware(datetime(anio + 1, 1, 1))
-        else:
-            fin = timezone.make_aware(datetime(anio, mes + 1, 1))
+    if tipo == 'mensual':
+        try:
+            anio = int(request.GET.get('anio') or anio)
+            mes = int(request.GET.get('mes') or mes)
+            inicio = timezone.make_aware(datetime(anio, mes, 1))
+            fin = timezone.make_aware(datetime(anio + 1, 1, 1) if mes == 12 else datetime(anio, mes + 1, 1))
+        except (ValueError, OverflowError):
+            error = 'El mes o el año indicado no es válido.'
+        periodo_texto = f"Mensual — {dict(MESES).get(mes, '')} {anio}"
+    elif tipo == 'personalizado':
+        try:
+            desde = datetime.strptime(request.GET.get('desde', ''), '%Y-%m-%d').date()
+            hasta = datetime.strptime(request.GET.get('hasta', ''), '%Y-%m-%d').date()
+            if desde > hasta:
+                error = 'La fecha "desde" no puede ser posterior a la fecha "hasta".'
+            inicio = timezone.make_aware(datetime.combine(desde, datetime.min.time()))
+            fin = timezone.make_aware(datetime.combine(hasta + timedelta(days=1), datetime.min.time()))
+            periodo_texto = f"Del {desde:%d/%m/%Y} al {hasta:%d/%m/%Y}"
+        except ValueError:
+            error = 'Indicá las fechas "desde" y "hasta" del período.'
+            periodo_texto = ''
     else:
         tipo = 'semanal'
-        anio, mes = ahora.year, ahora.month
         inicio = ahora - timedelta(days=7)
         fin = ahora
+        periodo_texto = f"Semanal — del {inicio:%d/%m/%Y} al {fin:%d/%m/%Y}"
 
-    umbral_demora = ahora - timedelta(days=Envio.UMBRAL_DEMORA_DIAS)
-    return {
+    reporte = {
         'tipo': tipo,
         'anio': anio,
         'mes': mes,
+        'desde': desde,
+        'hasta': hasta,
         'mes_nombre': dict(MESES).get(mes, ''),
+        'periodo_texto': periodo_texto,
+        'generado': ahora,
+        'error': error,
+    }
+    if error:
+        return reporte
+
+    umbral_demora = ahora - timedelta(days=Envio.UMBRAL_DEMORA_DIAS)
+    # Solo cuentan los pagos efectivamente recibidos: sin anular y, si fue
+    # transferencia, ya verificada por el administrador.
+    pagos = Pago.objects.filter(fecha__gte=inicio, fecha__lt=fin, anulado=False, verificado=True)
+    total_pagos = pagos.aggregate(total=Sum('monto'))['total'] or 0
+    reporte.update({
         'inicio': inicio,
         'fin': fin,
-        'generado': ahora,
-        'envios_registrados': Envio.objects.filter(fecha_registro__range=(inicio, fin)).count(),
-        'envios_entregados': Envio.objects.filter(estado='entregado', fecha_actualizacion__range=(inicio, fin)).count(),
-        'incidencias': Incidencia.objects.filter(fecha__range=(inicio, fin)).count(),
+        'envios_registrados': Envio.objects.filter(fecha_registro__gte=inicio, fecha_registro__lt=fin).count(),
+        'envios_entregados': Envio.objects.filter(estado='entregado', fecha_entrega__gte=inicio, fecha_entrega__lt=fin).count(),
+        'incidencias': Incidencia.objects.filter(fecha__gte=inicio, fecha__lt=fin).count(),
         'demorados_actuales': Envio.objects.filter(estado__in=Envio.ESTADOS_ACTIVOS, fecha_actualizacion__lt=umbral_demora).count(),
-    }
+        'pagos_cantidad': pagos.count(),
+        'pagos_total': total_pagos,
+        'pagos_tarjeta': pagos.filter(medio_pago='tarjeta').aggregate(total=Sum('monto'))['total'] or 0,
+        'pagos_transferencia': pagos.filter(medio_pago='transferencia').aggregate(total=Sum('monto'))['total'] or 0,
+        'pagos_sin_verificar': Pago.objects.filter(fecha__gte=inicio, fecha__lt=fin, anulado=False, verificado=False).count(),
+    })
+    # "Demorados ahora" es una foto del momento, no del período: no cuenta
+    # para decidir si el período tiene datos.
+    reporte['hay_datos'] = any(reporte[k] for k in (
+        'envios_registrados', 'envios_entregados', 'incidencias', 'pagos_cantidad', 'pagos_sin_verificar',
+    ))
+    return reporte
 
 
 @login_required
@@ -235,6 +351,9 @@ def generar_reporte_pdf_view(request):
     if request.user.rol != 'admin':
         return redirect('inicio')
     reporte = _calcular_reporte(request)
+    if reporte['error']:
+        messages.error(request, reporte['error'])
+        return redirect('generar_reporte')
 
     from io import BytesIO
     from reportlab.lib.pagesizes import A4
@@ -251,37 +370,40 @@ def generar_reporte_pdf_view(request):
     estilos = getSampleStyleSheet()
     elementos = []
 
-    if reporte['tipo'] == 'mensual':
-        periodo_texto = f"Mensual — {reporte['mes_nombre']} {reporte['anio']}"
-    else:
-        periodo_texto = f"Semanal — del {reporte['inicio']:%d/%m/%Y} al {reporte['fin']:%d/%m/%Y}"
-
     elementos.append(Paragraph('Transporte Santa Marta', estilos['Title']))
     elementos.append(Paragraph('Reporte de operaciones — Sucursal Santiago del Estero', estilos['Heading2']))
     elementos.append(Spacer(1, 0.4 * cm))
-    elementos.append(Paragraph(f"<b>Período del reporte:</b> {periodo_texto}", estilos['Normal']))
+    elementos.append(Paragraph(f"<b>Período del reporte:</b> {reporte['periodo_texto']}", estilos['Normal']))
     elementos.append(Paragraph(f"<b>Fecha de generación:</b> {reporte['generado']:%d/%m/%Y %H:%M} hs", estilos['Normal']))
     elementos.append(Spacer(1, 0.8 * cm))
 
-    filas = [
-        ['Métrica', 'Valor'],
-        ['Envíos registrados en el período', str(reporte['envios_registrados'])],
-        ['Envíos entregados en el período', str(reporte['envios_entregados'])],
-        ['Incidencias registradas en el período', str(reporte['incidencias'])],
-        ['Envíos demorados en este momento', str(reporte['demorados_actuales'])],
-    ]
-    tabla = Table(filas, colWidths=[11 * cm, 5 * cm])
-    tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0a2240')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e3edf8')),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f6ff')]),
-    ]))
-    elementos.append(tabla)
+    if not reporte['hay_datos']:
+        elementos.append(Paragraph(MENSAJE_SIN_DATOS, estilos['Normal']))
+    else:
+        filas = [
+            ['Métrica', 'Valor'],
+            ['Envíos registrados en el período', str(reporte['envios_registrados'])],
+            ['Envíos entregados en el período', str(reporte['envios_entregados'])],
+            ['Incidencias registradas en el período', str(reporte['incidencias'])],
+            ['Envíos demorados en este momento', str(reporte['demorados_actuales'])],
+            ['Pagos recibidos en el período (cantidad)', str(reporte['pagos_cantidad'])],
+            ['Total cobrado en el período', f"${reporte['pagos_total']}"],
+            ['   · con tarjeta', f"${reporte['pagos_tarjeta']}"],
+            ['   · por transferencia', f"${reporte['pagos_transferencia']}"],
+            ['Transferencias pendientes de verificar', str(reporte['pagos_sin_verificar'])],
+        ]
+        tabla = Table(filas, colWidths=[11 * cm, 5 * cm])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0a2240')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e3edf8')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f6ff')]),
+        ]))
+        elementos.append(tabla)
 
     doc.build(elementos)
     buffer.seek(0)
@@ -301,9 +423,17 @@ def editar_vehiculo_view(request, vehiculo_id):
         return redirect('admin_dashboard')
 
     if request.method == 'POST':
+        empleado_anterior = vehiculo.empleado
         form = EditarVehiculoForm(request.POST, instance=vehiculo)
         if form.is_valid():
-            form.save()
+            vehiculo = form.save()
+            _auditar(
+                request, 'edicion_vehiculo',
+                f'Vehículo {vehiculo.patente} modificado por {_nombre(request.user)}; empleado asignado: '
+                f'{_nombre(empleado_anterior) if empleado_anterior else "sin asignar"} → '
+                f'{_nombre(vehiculo.empleado) if vehiculo.empleado else "sin asignar"}.',
+                usuario_afectado=vehiculo.empleado or empleado_anterior,
+            )
             messages.success(request, '✓ Vehículo actualizado correctamente.')
             return redirect('admin_dashboard')
 
@@ -331,7 +461,12 @@ def eliminar_vehiculo_view(request, vehiculo_id):
         return redirect('inicio')
     if request.method == 'POST':
         try:
-            vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+            vehiculo = Vehiculo.objects.select_related('empleado').get(id=vehiculo_id)
+            _auditar(
+                request, 'baja_vehiculo',
+                f'Vehículo {vehiculo.patente} eliminado por {_nombre(request.user)}.',
+                usuario_afectado=vehiculo.empleado,
+            )
             vehiculo.delete()
         except Vehiculo.DoesNotExist:
             pass
@@ -359,6 +494,104 @@ def detalle_envio_view(request, envio_id):
 
 
 @login_required
+def editar_destinatario_view(request, envio_id):
+    """Corrige los datos del destinatario (nombre, contacto, modalidad y
+    dirección) mientras el paquete todavía no llegó a la sucursal: solo se
+    puede con el envío pendiente o en tránsito."""
+    if request.user.rol != 'admin':
+        return redirect('inicio')
+    try:
+        envio = Envio.objects.select_related('destinatario').get(id=envio_id)
+    except Envio.DoesNotExist:
+        messages.error(request, 'Ese envío no existe.')
+        return redirect('admin_dashboard')
+    volver = redirect('detalle_envio', envio_id=envio.id)
+    if request.method != 'POST':
+        return volver
+
+    if envio.estado not in ('pendiente', 'en_transito'):
+        messages.error(
+            request,
+            f'{envio.codigo} está {envio.get_estado_display().lower()}: los datos del destinatario solo se pueden '
+            'modificar mientras el envío está pendiente o en tránsito.'
+        )
+        return volver
+
+    nombre = (request.POST.get('destinatario_nombre') or '').strip()
+    telefono = (request.POST.get('telefono') or '').strip()
+    email = (request.POST.get('email') or '').strip()
+    modalidad = request.POST.get('modalidad')
+    direccion = (request.POST.get('direccion') or '').strip()
+
+    if not nombre or not telefono:
+        messages.error(request, 'El nombre y el teléfono del destinatario son obligatorios.')
+        return volver
+    if email:
+        try:
+            validate_email(email)
+        except ValidationError:
+            messages.error(request, 'El email ingresado no es válido.')
+            return volver
+    if modalidad not in dict(Envio.MODALIDAD_CHOICES):
+        messages.error(request, 'Elegí una modalidad de entrega válida.')
+        return volver
+    if modalidad == 'domicilio':
+        if not direccion:
+            messages.error(request, 'Para una entrega a domicilio tenés que indicar la dirección.')
+            return volver
+        if envio.peso > Vehiculo.CAPACIDAD_MAX_PESO_KG:
+            messages.error(
+                request,
+                f'{envio.codigo} pesa {envio.peso} kg y no entra en el furgón de reparto '
+                f'(máximo {Vehiculo.CAPACIDAD_MAX_PESO_KG} kg): tiene que quedar con retiro en sucursal.'
+            )
+            return volver
+    else:
+        direccion = ''
+
+    destinatario = envio.destinatario
+    antes = {
+        'nombre': destinatario.get_full_name() or destinatario.first_name,
+        'teléfono': destinatario.telefono,
+        'email': destinatario.email,
+        'modalidad': envio.get_modalidad_display(),
+        'dirección': envio.direccion_entrega,
+    }
+    if nombre != antes['nombre']:
+        destinatario.first_name = nombre
+        destinatario.last_name = ''
+    destinatario.telefono = telefono
+    destinatario.email = email
+    destinatario.save(update_fields=['first_name', 'last_name', 'telefono', 'email'])
+
+    # Si cambia la dirección hay que volver a ubicarla en el mapa para la
+    # zona de reparto, no se puede reutilizar la zona de la dirección vieja.
+    if direccion != envio.direccion_entrega:
+        envio.zona = ''
+        envio.lat = None
+        envio.lon = None
+    envio.modalidad = modalidad
+    envio.direccion_entrega = direccion
+    envio.save()
+
+    despues = {
+        'nombre': nombre, 'teléfono': telefono, 'email': email,
+        'modalidad': envio.get_modalidad_display(), 'dirección': direccion,
+    }
+    cambios = [f'{campo}: "{antes[campo] or "—"}" → "{despues[campo] or "—"}"' for campo in despues if despues[campo] != antes[campo]]
+    if cambios:
+        _auditar(
+            request, 'modificacion_destinatario',
+            f'Datos del destinatario del envío {envio.codigo} modificados por {_nombre(request.user)} ({"; ".join(cambios)}).',
+            envio_afectado=envio, usuario_afectado=destinatario,
+        )
+        messages.success(request, f'✓ Se actualizaron los datos del destinatario de {envio.codigo}.')
+    else:
+        messages.info(request, 'No se modificó ningún dato.')
+    return volver
+
+
+@login_required
 def cancelar_envio_view(request, envio_id):
     """Cancela un envío que todavía no salió de Buenos Aires. Una vez
     despachado ya no tiene sentido cancelarlo: ahí la vía es marcarlo
@@ -375,6 +608,11 @@ def cancelar_envio_view(request, envio_id):
         tenia_pago = envio.pagos.filter(anulado=False, verificado=True).exists()
         envio.estado = 'cancelado'
         envio.save()
+        _auditar(
+            request, 'cancelacion_envio',
+            f'Envío {envio.codigo} cancelado por {_nombre(request.user)}' + (' (tenía un pago confirmado: queda la devolución del dinero).' if tenia_pago else '.'),
+            envio_afectado=envio, usuario_afectado=envio.destinatario,
+        )
         notificar_cambio_estado(envio)
         if tenia_pago:
             messages.warning(request, f'{envio.codigo} cancelado. Atención: este envío ya tenía un pago confirmado — gestioná la devolución del dinero manualmente.')
@@ -416,6 +654,12 @@ def resolver_solicitud_cancelacion_view(request, solicitud_id):
             solicitud.resuelto_por = request.user
             solicitud.fecha_resolucion = timezone.now()
             solicitud.save()
+            _auditar(
+                request, 'cancelacion_envio',
+                f'Cancelación del envío {envio.codigo} aprobada por {_nombre(request.user)} a pedido del cliente '
+                f'(solicitud N° {solicitud.id})' + ('; tenía un pago confirmado: queda la devolución del dinero.' if tenia_pago else '.'),
+                envio_afectado=envio, usuario_afectado=envio.destinatario,
+            )
 
             notificar_cambio_estado(envio)
             if tenia_pago:
@@ -429,6 +673,12 @@ def resolver_solicitud_cancelacion_view(request, solicitud_id):
             solicitud.resuelto_por = request.user
             solicitud.fecha_resolucion = timezone.now()
             solicitud.save()
+            _auditar(
+                request, 'rechazo_cancelacion',
+                f'Pedido de cancelación N° {solicitud.id} del envío {envio.codigo} rechazado por {_nombre(request.user)}'
+                + (f'. Motivo: {motivo}' if motivo else '.'),
+                envio_afectado=envio, usuario_afectado=envio.destinatario,
+            )
 
             notificar_solicitud_cancelacion_rechazada(solicitud)
             messages.success(request, f'Rechazaste el pedido de cancelación de {envio.codigo}. El envío sigue su curso y se avisó al cliente por email.')
@@ -453,6 +703,11 @@ def marcar_devuelto_view(request, envio_id):
 
         envio.estado = 'devuelto'
         envio.save()
+        _auditar(
+            request, 'devolucion_envio',
+            f'Envío {envio.codigo} marcado como devuelto a Buenos Aires por {_nombre(request.user)}.',
+            envio_afectado=envio, usuario_afectado=envio.destinatario,
+        )
         notificar_cambio_estado(envio)
         messages.success(request, f'✓ {envio.codigo} marcado como devuelto a Buenos Aires. Se avisó al cliente por email.')
     return redirect('admin_dashboard')
@@ -469,13 +724,29 @@ def gestionar_reclamo_view(request, reclamo_id):
 
     if request.method == 'POST':
         estado = request.POST.get('estado')
-        respuesta = request.POST.get('respuesta', '')
+        respuesta = (request.POST.get('respuesta') or '').strip()
         if estado in dict(Reclamo.ESTADO_CHOICES):
+            if estado == 'resuelto' and not respuesta:
+                messages.error(request, 'Debe ingresar una respuesta antes de cerrar el reclamo.')
+                # Se vuelve a mostrar el formulario con lo que el admin eligió,
+                # sin guardar nada.
+                reclamo.estado = estado
+                contexto = _contexto_dashboard()
+                contexto.update({'reclamo_gestionar': reclamo, 'mostrar_gestionar_reclamo': True})
+                return render(request, 'administrador/dashboard.html', contexto)
+            estado_anterior = reclamo.get_estado_display()
             cambio = estado != reclamo.estado or respuesta != reclamo.respuesta
             reclamo.estado = estado
             reclamo.respuesta = respuesta
             reclamo.save()
             if cambio:
+                _auditar(
+                    request, 'gestion_reclamo',
+                    f'Reclamo N° {reclamo.id} del envío {reclamo.envio.codigo} gestionado por {_nombre(request.user)}: '
+                    f'{estado_anterior} → {reclamo.get_estado_display()}'
+                    + ('; con respuesta al cliente.' if respuesta else '.'),
+                    envio_afectado=reclamo.envio, usuario_afectado=reclamo.cliente,
+                )
                 notificar_reclamo_actualizado(reclamo)
                 messages.success(request, f'✓ Reclamo N° {reclamo.id} actualizado. Se avisó al cliente por email.')
         return redirect('admin_dashboard')
@@ -584,6 +855,11 @@ def confirmar_pago_view(request, pago_id):
         pago.verificado_por = request.user
         pago.fecha_verificacion = timezone.now()
         pago.save()
+        _auditar(
+            request, 'confirmacion_pago',
+            f'Transferencia de ${pago.monto} del envío {pago.envio.codigo} confirmada como recibida por {_nombre(request.user)}.',
+            pago_afectado=pago, usuario_afectado=pago.envio.destinatario,
+        )
         notificar_recibo_pago(pago)
         messages.success(request, f'✓ Transferencia de ${pago.monto} confirmada para el envío {pago.envio.codigo}.')
     return redirect('admin_dashboard')

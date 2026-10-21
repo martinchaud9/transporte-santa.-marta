@@ -1,4 +1,3 @@
-from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -56,7 +55,7 @@ class Despacho(models.Model):
     @property
     def envios_a_despachar(self):
         """Los que realmente van a viajar si se despacha este camión ahora."""
-        return self.envios.filter(estado='pendiente')
+        return self.envios.filter(estado='pendiente').order_by('-fecha_registro')
 
     @property
     def envios_cancelados_a_retirar(self):
@@ -157,18 +156,51 @@ class Envio(models.Model):
         return self.dias_sin_actualizar if self.estado == 'retenido' else None
 
     @property
+    def tiene_plazo_de_retiro(self):
+        """Corre el plazo de UMBRAL_RETENCION_DIAS para retirar el paquete en
+        la sucursal: aplica a los de modalidad "retiro en sucursal" que ya
+        llegaron y a los retenidos (los que fallaron las 2 visitas a
+        domicilio pasan a retiro en sucursal)."""
+        return self.estado == 'retenido' or (
+            self.estado == 'en_sucursal' and self.modalidad == 'sucursal'
+        )
+
+    @property
+    def fecha_inicio_plazo_retiro(self):
+        # Un retenido empieza a contar desde que quedó retenido; uno de
+        # retiro en sucursal, desde que llegó a la sucursal.
+        if self.estado == 'retenido':
+            return self.fecha_actualizacion
+        return self.fecha_recepcion or self.fecha_actualizacion
+
+    @property
+    def dias_en_sucursal(self):
+        if not self.tiene_plazo_de_retiro:
+            return None
+        return max((timezone.now() - self.fecha_inicio_plazo_retiro).days, 0)
+
+    @property
+    def dias_restantes_retiro(self):
+        """Días que le quedan al cliente para retirar el paquete (None si no
+        corre plazo para este envío)."""
+        if not self.tiene_plazo_de_retiro:
+            return None
+        return max(self.UMBRAL_RETENCION_DIAS - self.dias_en_sucursal, 0)
+
+    @property
     def debe_devolverse_por_vencimiento(self):
-        return self.estado == 'retenido' and self.dias_sin_actualizar >= self.UMBRAL_RETENCION_DIAS
+        return self.tiene_plazo_de_retiro and self.dias_en_sucursal >= self.UMBRAL_RETENCION_DIAS
 
     @classmethod
     def devolver_retenidos_vencidos(cls):
-        """Barre los envíos 'retenido' hace UMBRAL_RETENCION_DIAS días o más
-        (sin que el cliente los haya retirado) y los devuelve automáticamente
+        """Barre los envíos que esperan retiro en sucursal (retenidos y de
+        modalidad "retiro en sucursal") hace UMBRAL_RETENCION_DIAS días o más
+        sin que el cliente los haya retirado y los devuelve automáticamente
         a Buenos Aires. Se llama en cada carga del panel admin, no depende de
         un cron. Devuelve la lista de envíos recién devueltos para que quien
         llame les avise por email."""
-        limite = timezone.now() - timedelta(days=cls.UMBRAL_RETENCION_DIAS)
-        vencidos = list(cls.objects.filter(estado='retenido', fecha_actualizacion__lt=limite))
+        candidatos = cls.objects.filter(estado__in=['retenido', 'en_sucursal']).select_related('destinatario')
+        vencidos = [e for e in candidatos if e.debe_devolverse_por_vencimiento]
         if vencidos:
             cls.objects.filter(id__in=[e.id for e in vencidos]).update(
                 estado='devuelto', fecha_actualizacion=timezone.now()
@@ -375,14 +407,26 @@ class Consulta(models.Model):
 
 
 class LogAuditoria(models.Model):
-    """Registro de acciones administrativas sensibles e irreversibles (bajas
-    de cuentas, anulación de pagos, extravíos), para poder responder "quién
-    hizo esto y cuándo" aunque el registro afectado cambie o se desactive."""
+    """Registro de acciones administrativas sensibles (altas y bajas de
+    cuentas y vehículos, cancelaciones, pagos, reclamos, extravíos), para
+    poder responder "quién hizo esto y cuándo" aunque el registro afectado
+    cambie o se desactive."""
     ACCION_CHOICES = [
         ('baja_empleado', 'Baja de empleado'),
         ('anulacion_pago', 'Anulación de pago'),
         ('rechazo_pago', 'Rechazo de comprobante'),
         ('extravio_envio', 'Envío marcado como extraviado'),
+        ('cancelacion_envio', 'Cancelación de envío'),
+        ('rechazo_cancelacion', 'Cancelación rechazada'),
+        ('confirmacion_pago', 'Confirmación de pago'),
+        ('devolucion_envio', 'Envío devuelto a Buenos Aires'),
+        ('alta_empleado', 'Alta de empleado'),
+        ('edicion_empleado', 'Modificación de empleado'),
+        ('modificacion_destinatario', 'Modificación de destinatario'),
+        ('alta_vehiculo', 'Alta de vehículo'),
+        ('edicion_vehiculo', 'Modificación de vehículo'),
+        ('baja_vehiculo', 'Baja de vehículo'),
+        ('gestion_reclamo', 'Gestión de reclamo'),
     ]
 
     accion = models.CharField(max_length=30, choices=ACCION_CHOICES)
@@ -410,7 +454,7 @@ class LogAuditoria(models.Model):
         return self.usuario_afectado or self.pago_afectado or self.envio_afectado
 
     def __str__(self):
-        return f"{self.get_accion_display()} — {self.objetivo} ({self.fecha:%d/%m/%Y %H:%M})"
+        return f"{self.get_accion_display()} — {self.objetivo or '—'} ({self.fecha:%d/%m/%Y %H:%M})"
 
 
 class Vehiculo(models.Model):

@@ -11,9 +11,10 @@ import io
 import qrcode
 
 def dashboard_view(request):
-    envios_pendientes = Envio.objects.filter(estado='pendiente')
-    envios_transito = Envio.objects.filter(estado='en_transito')
-    envios_entregados = Envio.objects.filter(estado='entregado')
+    # Todos los listados van del envío cargado más recientemente al más antiguo.
+    envios_pendientes = Envio.objects.filter(estado='pendiente').order_by('-fecha_registro')
+    envios_transito = Envio.objects.filter(estado='en_transito').select_related('destinatario').order_by('-fecha_registro')
+    envios_entregados = Envio.objects.filter(estado='entregado').select_related('destinatario').order_by('-fecha_registro')
     envios_recibidos = Envio.objects.exclude(fecha_recepcion__isnull=True).order_by('-fecha_recepcion')
     incidencias_sucursal = Incidencia.objects.filter(
         envio__despacho__isnull=False
@@ -28,6 +29,7 @@ def dashboard_view(request):
         'despachos': Despacho.objects.filter(fecha_salida__isnull=False).prefetch_related('envios').order_by('-fecha_salida'),
         # Camiones que todavía se están cargando (pueden recibir más paquetes).
         'despachos_abiertos': Despacho.objects.filter(fecha_salida__isnull=True).prefetch_related('envios__destinatario').order_by('fecha_creacion'),
+        'capacidad_camion': Despacho.CAPACIDAD_MAX_PESO_KG,
     })
     
 def buscar_cliente_view(request):

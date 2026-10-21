@@ -12,6 +12,10 @@ from core.zonificacion import geocodificar, calcular_zona, ordenar_ruta
 from core.notificaciones import notificar_cambio_estado, notificar_intento_fallido
 
 def _contexto_dashboard(request):
+    # Mismo barrido que en el panel admin: lo que lleva más de
+    # UMBRAL_RETENCION_DIAS días esperando retiro vuelve a Buenos Aires.
+    for envio in Envio.devolver_retenidos_vencidos():
+        notificar_cambio_estado(envio)
     return {
         'envios_transito': Envio.objects.filter(estado='en_transito'),
         'envios_sucursal': Envio.objects.filter(estado='en_sucursal'),
@@ -37,6 +41,17 @@ def _finalizar_reparto_si_corresponde(zona):
     deja de ver el mapa en cuanto no hay nada más que rastrear."""
     if zona and not Envio.objects.filter(estado='en_reparto', zona=zona).exists():
         RepartoActivo.objects.filter(zona=zona).delete()
+
+
+def _tiene_vehiculo(empleado):
+    """Para salir a reparto el empleado tiene que tener un vehículo asignado."""
+    return Vehiculo.objects.filter(empleado=empleado).exists()
+
+
+MENSAJE_SIN_VEHICULO = (
+    'No podés salir a reparto: no tenés un vehículo asignado. '
+    'Pedile al administrador que te asigne uno.'
+)
 
 
 def _peso_en_reparto(zona):
@@ -98,44 +113,32 @@ def recepcionar_envio_view(request):
 
 @login_required
 def actualizar_estado_view(request):
+    """Marca un envío como entregado (en la sucursal o en la puerta del
+    cliente). Salir a reparto no se hace paquete por paquete: se hace por zona
+    desde "Preparar reparto" (`despachar_zona_view`)."""
     if request.user.rol != 'empleado':
         return redirect('inicio')
     if request.method == 'POST':
         envio_id = request.POST.get('envio_id')
         nuevo_estado = request.POST.get('estado')
-        estados_permitidos = ['en_reparto', 'entregado']
         try:
             envio = Envio.objects.get(id=envio_id)
-            if nuevo_estado in estados_permitidos:
-                if nuevo_estado == 'entregado' and not envio.puede_entregarse:
+            if nuevo_estado == 'entregado':
+                if not envio.puede_entregarse:
                     messages.error(
                         request,
                         f'No se puede entregar {envio.codigo}: tiene un pago pendiente de ${envio.saldo_pendiente}. '
                         'El cliente debe pagar antes de recibir el paquete.'
                     )
                     return redirect('empleado_dashboard')
-                if nuevo_estado == 'en_reparto' and envio.zona:
-                    libre = Vehiculo.CAPACIDAD_MAX_PESO_KG - _peso_en_reparto(envio.zona)
-                    if envio.peso > libre:
-                        messages.error(
-                            request,
-                            f'{envio.codigo} ({envio.peso} kg) no entra en el furgón de la zona {envio.get_zona_display()}: '
-                            f'le quedan {max(libre, 0)} kg libres de {Vehiculo.CAPACIDAD_MAX_PESO_KG}. Sale en la próxima salida.'
-                        )
-                        return redirect('empleado_dashboard')
-                envio.estado = nuevo_estado
+                envio.estado = 'entregado'
                 envio.notificado_demora = False
-                if nuevo_estado == 'entregado':
-                    envio.fecha_entrega = timezone.now()
-                    envio.entregado_por = request.user
+                envio.fecha_entrega = timezone.now()
+                envio.entregado_por = request.user
                 envio.save()
                 notificar_cambio_estado(envio)
-                if nuevo_estado == 'entregado':
-                    _finalizar_reparto_si_corresponde(envio.zona)
-                    messages.success(request, f'✓ Paquete {envio.codigo} entregado correctamente.')
-                else:
-                    _registrar_reparto_activo(envio.zona, request.user)
-                    messages.success(request, f'✓ Paquete {envio.codigo} salió a reparto.')
+                _finalizar_reparto_si_corresponde(envio.zona)
+                messages.success(request, f'✓ Paquete {envio.codigo} entregado correctamente.')
         except Envio.DoesNotExist:
             messages.error(request, 'El envío no existe.')
     return redirect('empleado_dashboard')
@@ -279,7 +282,11 @@ def marcar_ausente_view(request):
             envio = Envio.objects.get(id=envio_id, estado='en_reparto')
             envio.intentos_entrega += 1
             if envio.intentos_entrega >= Envio.MAX_INTENTOS_ENTREGA:
+                # Con las 2 visitas fallidas el envío deja de ser a domicilio:
+                # pasa a retiro en sucursal y el cliente tiene el plazo de
+                # retención para ir a buscarlo.
                 envio.estado = 'retenido'
+                envio.modalidad = 'sucursal'
             else:
                 envio.estado = 'en_sucursal'
             envio.notificado_demora = False
@@ -287,7 +294,7 @@ def marcar_ausente_view(request):
             _finalizar_reparto_si_corresponde(envio.zona)
             notificar_intento_fallido(envio)
             if envio.estado == 'retenido':
-                messages.warning(request, f'{envio.codigo}: segundo intento fallido. El paquete queda retenido en sucursal y se notificó al cliente para que pase a retirarlo.')
+                messages.warning(request, f'{envio.codigo}: segundo intento fallido. La entrega pasa a retiro en sucursal: el paquete queda retenido y el cliente tiene {Envio.UMBRAL_RETENCION_DIAS} días para retirarlo (se le notificó por email).')
             else:
                 messages.success(request, f'✓ {envio.codigo}: intento de entrega registrado. El paquete vuelve a sucursal y se notificó al cliente.')
         except Envio.DoesNotExist:
@@ -342,6 +349,7 @@ def preparar_reparto_view(request):
         'reparto_sin_zona': candidatos.filter(zona=''),
         'zona_choices': Envio.ZONA_CHOICES,
         'mostrar_reparto': True,
+        'sin_vehiculo': not _tiene_vehiculo(request.user),
     })
     return render(request, 'empleado/dashboard.html', contexto)
 
@@ -350,6 +358,9 @@ def despachar_zona_view(request):
     if request.user.rol != 'empleado':
         return redirect('inicio')
     if request.method == 'POST':
+        if not _tiene_vehiculo(request.user):
+            messages.error(request, MENSAJE_SIN_VEHICULO)
+            return redirect('empleado_preparar_reparto')
         zona = request.POST.get('zona')
         candidatos = Envio.objects.filter(estado='en_sucursal', modalidad='domicilio', zona=zona)
         afectados, quedan, peso_viaje, libre = _armar_viaje(zona, candidatos)

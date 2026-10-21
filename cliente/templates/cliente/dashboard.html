@@ -211,6 +211,12 @@
             <div class="envio-detail"><strong>Modalidad:</strong> {{ envio.get_modalidad_display }}</div>
             <div class="envio-detail"><strong>Contenido:</strong> {{ envio.contenido }}</div>
             {% if envio.direccion_entrega %}<div class="envio-detail"><strong>Dirección:</strong> {{ envio.direccion_entrega }}</div>{% endif %}
+            {% if envio.tiene_plazo_de_retiro %}
+            <div class="envio-detail" style="margin-top:6px;">
+              <strong>Retiro en sucursal:</strong> {% include 'core/_plazo_retiro.html' %}
+              <div style="font-size:.78rem;color:var(--gray);margin-top:4px;">Pasá a buscarlo con tu DNI. Pasados {{ envio.UMBRAL_RETENCION_DIAS }} días desde que llegó, se devuelve a Buenos Aires.</div>
+            </div>
+            {% endif %}
           </div>
           <div class="progress-bar" style="margin-top:14px;">
             <div class="step">

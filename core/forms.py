@@ -33,6 +33,28 @@ class RegistroEmpleadoForm(UserCreationForm):
         return user
 
 
+class EditarEmpleadoForm(forms.ModelForm):
+    """Corrige los datos de un empleado ya dado de alta. El usuario (login) y
+    la contraseña no se tocan desde acá."""
+    class Meta:
+        model = Usuario
+        fields = ['first_name', 'dni', 'email', 'telefono']
+
+    def clean_first_name(self):
+        nombre = (self.cleaned_data.get('first_name') or '').strip()
+        if not nombre:
+            raise forms.ValidationError('El nombre es obligatorio.')
+        return nombre
+
+    def clean_dni(self):
+        dni = (self.cleaned_data.get('dni') or '').strip()
+        if not dni:
+            raise forms.ValidationError('El DNI es obligatorio.')
+        if Usuario.objects.filter(dni=dni).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Ya existe otro usuario registrado con ese DNI.')
+        return dni
+
+
 def _empleado_ya_asignado(empleado, vehiculo_actual_pk=None):
     """Devuelve True si `empleado` ya tiene otro vehículo asignado (distinto del
     que se está editando, si corresponde)."""

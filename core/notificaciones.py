@@ -47,7 +47,13 @@ def notificar_cambio_estado(envio):
     if not datos:
         return
     asunto, cuerpo = datos
-    enviar(asunto, cuerpo.format(codigo=envio.codigo), envio.destinatario.email)
+    cuerpo = cuerpo.format(codigo=envio.codigo)
+    if envio.estado == 'en_sucursal' and envio.modalidad == 'sucursal':
+        cuerpo += (
+            f' Podés pasar a retirarlo con tu DNI dentro de los próximos {envio.UMBRAL_RETENCION_DIAS} días; '
+            'pasado ese plazo se devuelve a Buenos Aires.'
+        )
+    enviar(asunto, cuerpo, envio.destinatario.email)
 
 
 def notificar_recibo_pago(pago):
@@ -88,8 +94,9 @@ def notificar_intento_fallido(envio):
         asunto = 'Tu paquete te espera en la sucursal'
         cuerpo = (
             f'Visitamos tu domicilio para entregar el paquete {envio.codigo} y nuevamente no había nadie. '
-            'Como ya se realizaron los dos intentos de entrega, el paquete quedó retenido en la sucursal '
-            'de Santiago del Estero. Por favor acercate a retirarlo con tu DNI.'
+            'Como ya se realizaron los dos intentos de entrega, tu envío pasó a retiro en sucursal: el paquete '
+            'quedó retenido en la sucursal de Santiago del Estero. Por favor acercate a retirarlo con tu DNI '
+            f'dentro de los próximos {envio.UMBRAL_RETENCION_DIAS} días; pasado ese plazo se devuelve a Buenos Aires.'
         )
     else:
         asunto = 'No pudimos entregar tu paquete'

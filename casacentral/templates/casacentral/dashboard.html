@@ -191,7 +191,7 @@
       </div>
       <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:20px;">
         Cada paquete nuevo se asigna solo al camión que se está cargando. Cuando un camión llega a
-        200 kg, el próximo paquete abre uno nuevo automáticamente, aunque este todavía no haya salido.
+        {{ capacidad_camion }} kg, el próximo paquete abre uno nuevo automáticamente, aunque este todavía no haya salido.
       </p>
 
       {% for despacho in despachos_abiertos %}
@@ -218,7 +218,7 @@
           {% endif %}
         </div>
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Peso</th><th>Etiqueta</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Peso</th><th>Fecha de carga</th><th>Etiqueta</th></tr></thead>
           <tbody>
             {% for envio in despacho.envios_a_despachar %}
             <tr>
@@ -227,6 +227,7 @@
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
               <td>{{ envio.peso }} kg</td>
+              <td>{{ envio.fecha_registro|date:"d/m/Y H:i" }}</td>
               <td><button class="btn btn-etiqueta" onclick="verEtiqueta('{{ envio.codigo }}')">Ver QR</button></td>
             </tr>
             {% endfor %}
@@ -265,7 +266,7 @@
             <div class="field"><label>Teléfono de contacto *</label><input type="tel" name="telefono" id="input-telefono" placeholder="+54 385 000 0000" required/></div>
             <div class="field"><label>Email del destinatario</label><input type="email" name="email" id="input-email" placeholder="destinatario@correo.com"/></div>
             <div class="field"><label>Contenido del paquete *</label><input type="text" name="contenido" placeholder="Ej: Ropa, electrónica..." required/></div>
-            <div class="field"><label>Peso (kg) *</label><input type="number" name="peso" placeholder="Ej: 2.5" step="0.01" min="0.01" max="200" required/></div>
+            <div class="field"><label>Peso (kg) *</label><input type="number" name="peso" placeholder="Ej: 2.5" step="0.01" min="0.01" max="{{ capacidad_camion }}" required/></div>
             <div class="field"><label>Precio del servicio *</label><input type="number" name="precio" placeholder="0.00" step="0.01" required/></div>
             <div class="field">
               <label>Modalidad de entrega *</label>
@@ -287,7 +288,7 @@
         <div>
           <div class="form-card">
             <div class="form-card-title">Información importante</div>
-            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Cada envío se asigna automáticamente al camión que se está cargando. Cuando ese camión llega a 200 kg, el próximo envío abre uno nuevo solo.</p>
+            <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Cada envío se asigna automáticamente al camión que se está cargando. Cuando ese camión llega a {{ capacidad_camion }} kg, el próximo envío abre uno nuevo solo.</p>
             <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:12px;">Los envíos quedan en estado <strong>Pendiente</strong> hasta que se despache el camión al que pertenecen; ahí pasan a <strong>En tránsito</strong> y son visibles para la sucursal de Santiago del Estero.</p>
             <p style="font-size:.85rem;color:var(--gray);line-height:1.6;">Si el destinatario ya existe en el sistema, sus datos se reutilizan automáticamente.</p>
           </div>
@@ -300,7 +301,7 @@
       <div class="section-header"><div class="section-title">Envíos en tránsito</div></div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Etiqueta</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Fecha de carga</th><th>Etiqueta</th></tr></thead>
           <tbody>
             {% for envio in envios_transito %}
             <tr>
@@ -309,10 +310,11 @@
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
               <td><span class="badge badge-transito">En tránsito</span></td>
+              <td>{{ envio.fecha_registro|date:"d/m/Y H:i" }}</td>
               <td><button class="btn btn-etiqueta" onclick="verEtiqueta('{{ envio.codigo }}')">Ver QR</button></td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos en tránsito</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos en tránsito</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -403,7 +405,7 @@
       <div class="section-header"><div class="section-title">Envíos Entregados</div></div>
       <div class="table-card">
         <table>
-          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Código</th><th>Destinatario</th><th>DNI/CUIT</th><th>Modalidad</th><th>Estado</th><th>Fecha de carga</th></tr></thead>
           <tbody>
             {% for envio in envios_entregados %}
             <tr>
@@ -412,9 +414,10 @@
               <td>{{ envio.destinatario.dni }}</td>
               <td>{{ envio.get_modalidad_display }}</td>
               <td><span class="badge" style="background:#f0fdf4;color:#16a34a;">Entregado</span></td>
+              <td>{{ envio.fecha_registro|date:"d/m/Y H:i" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos entregados aún</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--gray);padding:20px;">No hay envíos entregados aún</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -344,8 +344,9 @@
               <td>{{ empleado.email|default:"—" }}</td>
               <td>{{ empleado.telefono|default:"—" }}</td>
               <td><span class="badge {% if empleado.is_active %}badge-sucursal{% else %}badge-pendiente{% endif %}">{% if empleado.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
-              <td>
+              <td style="display:flex;gap:8px;flex-wrap:wrap;">
                 {% if empleado.is_active %}
+                <a href="{% url 'editar_empleado' empleado.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Editar</a>
                 <form method="POST" action="{% url 'eliminar_empleado' empleado.id %}" onsubmit="return confirm('¿Está seguro que desea eliminar este empleado?');">
                   {% csrf_token %}
                   <button type="submit" class="action-btn" style="color:#dc2626;border-color:#fecaca;">Eliminar</button>
@@ -494,6 +495,7 @@
                   {% elif envio.estado == 'retenido' %}badge-retenido
                   {% elif envio.estado == 'cancelado' or envio.estado == 'devuelto' or envio.estado == 'extraviado' %}badge-reclamo
                   {% else %}badge-pendiente{% endif %}">{{ envio.get_estado_display }}</span>
+                {% include 'core/_plazo_retiro.html' %}
               </td>
               <td><a href="{% url 'detalle_envio' envio.id %}" class="action-btn" style="text-decoration:none;display:inline-block;">Ver</a></td>
             </tr>
@@ -811,8 +813,9 @@
             <tr>
               <td>
                 <span class="badge
-                  {% if log.accion == 'baja_empleado' %}badge-pendiente
-                  {% elif log.accion == 'extravio_envio' %}badge-reclamo
+                  {% if log.accion == 'baja_empleado' or log.accion == 'baja_vehiculo' or log.accion == 'rechazo_cancelacion' %}badge-pendiente
+                  {% elif log.accion == 'extravio_envio' or log.accion == 'cancelacion_envio' or log.accion == 'devolucion_envio' or log.accion == 'anulacion_pago' or log.accion == 'rechazo_pago' %}badge-reclamo
+                  {% elif log.accion == 'confirmacion_pago' or log.accion == 'alta_empleado' or log.accion == 'alta_vehiculo' %}badge-sucursal
                   {% else %}badge-proceso{% endif %}">{{ log.get_accion_display }}</span>
               </td>
               <td>
@@ -853,15 +856,15 @@
           {% csrf_token %}
           <div class="field" style="margin-bottom:16px;">
             <label>Estado del reclamo *</label>
-            <select name="estado">
+            <select name="estado" onchange="document.getElementById('reclamo-respuesta').required = this.value === 'resuelto'; document.getElementById('respuesta-obligatoria').style.display = this.value === 'resuelto' ? 'inline' : 'none';">
               <option value="nuevo" {% if reclamo_gestionar.estado == 'nuevo' %}selected{% endif %}>Nuevo</option>
               <option value="en_proceso" {% if reclamo_gestionar.estado == 'en_proceso' %}selected{% endif %}>En proceso</option>
               <option value="resuelto" {% if reclamo_gestionar.estado == 'resuelto' %}selected{% endif %}>Resuelto</option>
             </select>
           </div>
           <div class="field" style="margin-bottom:20px;">
-            <label>Respuesta al cliente</label>
-            <textarea name="respuesta" rows="4" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-light);border-radius:9px;font-family:'Barlow',sans-serif;font-size:.9rem;outline:none;" placeholder="Escribí la respuesta o el detalle de la gestión...">{{ reclamo_gestionar.respuesta }}</textarea>
+            <label>Respuesta al cliente <span id="respuesta-obligatoria" style="color:#dc2626;{% if reclamo_gestionar.estado != 'resuelto' %}display:none;{% endif %}">* (obligatoria para cerrar el reclamo)</span></label>
+            <textarea name="respuesta" id="reclamo-respuesta" rows="4" {% if reclamo_gestionar.estado == 'resuelto' %}required{% endif %} style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-light);border-radius:9px;font-family:'Barlow',sans-serif;font-size:.9rem;outline:none;" placeholder="Escribí la respuesta o el detalle de la gestión...">{{ reclamo_gestionar.respuesta }}</textarea>
           </div>
           <div style="display:flex;gap:12px;justify-content:flex-end;">
             <button type="button" class="btn btn-outline" onclick="showPage('reclamos')">Cancelar</button>
@@ -907,13 +910,14 @@
       <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:500px;margin-bottom:24px;">
         <form method="GET" action="{% url 'generar_reporte' %}">
           <div class="field" style="margin-bottom:16px;">
-            <label>Tipo de reporte</label>
+            <label>Período del reporte</label>
             <select name="tipo" onchange="togglePeriodo(this)">
               <option value="semanal" {% if reporte.tipo == 'semanal' or not reporte %}selected{% endif %}>Semanal (últimos 7 días)</option>
-              <option value="mensual" {% if reporte.tipo == 'mensual' %}selected{% endif %}>Mensual</option>
+              <option value="mensual" {% if reporte.tipo == 'mensual' %}selected{% endif %}>Mensual (elegir mes)</option>
+              <option value="personalizado" {% if reporte.tipo == 'personalizado' %}selected{% endif %}>Personalizado (elegir fechas)</option>
             </select>
           </div>
-          <div class="field-group periodo-field" id="periodo-field" style="margin-bottom:24px;grid-template-columns:1fr 1fr;{% if reporte.tipo != 'mensual' %}display:none;{% endif %}">
+          <div class="field-group periodo-field" id="periodo-mensual" style="margin-bottom:24px;grid-template-columns:1fr 1fr;{% if reporte.tipo != 'mensual' %}display:none;{% endif %}">
             <div class="field">
               <label>Mes</label>
               <select name="mes">
@@ -931,17 +935,36 @@
               </select>
             </div>
           </div>
+          <div class="field-group periodo-field" id="periodo-personalizado" style="margin-bottom:24px;grid-template-columns:1fr 1fr;{% if reporte.tipo != 'personalizado' %}display:none;{% endif %}">
+            <div class="field">
+              <label>Desde</label>
+              <input type="date" name="desde" value="{{ reporte.desde|date:'Y-m-d' }}"/>
+            </div>
+            <div class="field">
+              <label>Hasta</label>
+              <input type="date" name="hasta" value="{{ reporte.hasta|date:'Y-m-d' }}"/>
+            </div>
+          </div>
           <button type="submit" class="btn btn-primary">Generar reporte</button>
         </form>
       </div>
 
-      {% if reporte %}
+      {% if reporte.error %}
+      <div style="background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;border-radius:9px;padding:12px 16px;font-size:.88rem;font-weight:600;max-width:500px;">{{ reporte.error }}</div>
+      {% elif reporte %}
       <div class="section-header">
-        <div class="section-title">Resultado — {% if reporte.tipo == 'mensual' %}{{ reporte.mes_nombre }} {{ reporte.anio }}{% else %}Últimos 7 días{% endif %}</div>
-        <a href="{% url 'generar_reporte_pdf' %}?tipo={{ reporte.tipo }}&anio={{ reporte.anio }}&mes={{ reporte.mes }}" class="btn btn-outline">
+        <div class="section-title">Resultado — {{ reporte.periodo_texto }}</div>
+        {% if reporte.hay_datos %}
+        <a href="{% url 'generar_reporte_pdf' %}?tipo={{ reporte.tipo }}&anio={{ reporte.anio }}&mes={{ reporte.mes }}&desde={{ reporte.desde|date:'Y-m-d' }}&hasta={{ reporte.hasta|date:'Y-m-d' }}" class="btn btn-outline">
           <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Descargar PDF
         </a>
+        {% endif %}
       </div>
+      {% if not reporte.hay_datos %}
+      <div style="background:white;border:1.5px dashed var(--gray-light);border-radius:14px;padding:36px 20px;text-align:center;color:var(--gray);font-size:.95rem;font-weight:600;">
+        No hay datos disponibles para el período indicado.
+      </div>
+      {% else %}
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Envíos registrados</span><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div></div>
@@ -951,7 +974,7 @@
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Envíos entregados</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div></div>
           <div class="stat-card-num">{{ reporte.envios_entregados }}</div>
-          <div class="stat-card-sub">En el período elegido</div>
+          <div class="stat-card-sub">Entregados en el período</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top"><span class="stat-card-label">Incidencias</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
@@ -963,7 +986,18 @@
           <div class="stat-card-num">{{ reporte.demorados_actuales }}</div>
           <div class="stat-card-sub">Más de 2 días sin actualizar</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Total cobrado</span><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></div></div>
+          <div class="stat-card-num">${{ reporte.pagos_total|floatformat:"-2" }}</div>
+          <div class="stat-card-sub">{{ reporte.pagos_cantidad }} pago{{ reporte.pagos_cantidad|pluralize }} · tarjeta ${{ reporte.pagos_tarjeta|floatformat:"-2" }} · transferencia ${{ reporte.pagos_transferencia|floatformat:"-2" }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><span class="stat-card-label">Transferencias por verificar</span><div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div></div>
+          <div class="stat-card-num">{{ reporte.pagos_sin_verificar }}</div>
+          <div class="stat-card-sub">Comprobantes del período sin confirmar</div>
+        </div>
       </div>
+      {% endif %}
       {% endif %}
     </div>
 
@@ -1042,6 +1076,35 @@
         </table>
       </div>
     </div>
+
+    {% if empleado_editar %}
+    <!-- EDITAR EMPLEADO -->
+    <div id="page-editar-empleado-{{ empleado_editar.id }}" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Editar Empleado — {{ empleado_editar.username }}</div>
+        <button class="btn btn-outline" onclick="showPage('empleados')">← Volver</button>
+      </div>
+      <div style="background:white;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(10,34,64,.07);border:1px solid var(--gray-light);max-width:600px;">
+        {% if error_empleado_editar %}
+        <div style="background:#fee2e2;border:1.5px solid #fecaca;color:#dc2626;border-radius:9px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:20px;">{{ error_empleado_editar }}</div>
+        {% endif %}
+        <form method="POST" action="{% url 'editar_empleado' empleado_editar.id %}">
+          {% csrf_token %}
+          <div class="field-group">
+            <div class="field"><label>Usuario</label><input type="text" value="{{ empleado_editar.username }}" disabled/></div>
+            <div class="field"><label>Nombre completo *</label><input type="text" name="first_name" value="{% if datos_empleado_editar %}{{ datos_empleado_editar.first_name }}{% else %}{{ empleado_editar.first_name }}{% endif %}" required/></div>
+            <div class="field"><label>DNI *</label><input type="text" name="dni" value="{% if datos_empleado_editar %}{{ datos_empleado_editar.dni }}{% else %}{{ empleado_editar.dni }}{% endif %}" required/></div>
+            <div class="field"><label>Correo electrónico</label><input type="email" name="email" value="{% if datos_empleado_editar %}{{ datos_empleado_editar.email }}{% else %}{{ empleado_editar.email }}{% endif %}"/></div>
+            <div class="field"><label>Teléfono</label><input type="tel" name="telefono" value="{% if datos_empleado_editar %}{{ datos_empleado_editar.telefono }}{% else %}{{ empleado_editar.telefono }}{% endif %}"/></div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="showPage('empleados')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
     {% if vehiculo_editar %}
     <!-- EDITAR VEHICULO -->
@@ -1160,6 +1223,25 @@
             <div><strong>Email:</strong> {{ envio_detalle.destinatario.email|default:"—" }}</div>
             <div><strong>Teléfono:</strong> {{ envio_detalle.destinatario.telefono|default:"—" }}</div>
           </div>
+          {% if envio_detalle.estado == 'pendiente' or envio_detalle.estado == 'en_transito' %}
+          <button type="button" class="btn btn-outline" style="margin-top:14px;" onclick="var f = document.getElementById('form-destinatario'); f.style.display = f.style.display === 'none' ? 'block' : 'none';">✏️ Editar destinatario</button>
+          <form method="POST" action="{% url 'editar_destinatario' envio_detalle.id %}" id="form-destinatario" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-light);">
+            {% csrf_token %}
+            <div class="field" style="margin-bottom:12px;"><label>Nombre del destinatario *</label><input type="text" name="destinatario_nombre" value="{{ envio_detalle.destinatario.get_full_name|default:envio_detalle.destinatario.first_name }}" required/></div>
+            <div class="field" style="margin-bottom:12px;"><label>Teléfono de contacto *</label><input type="tel" name="telefono" value="{{ envio_detalle.destinatario.telefono }}" required/></div>
+            <div class="field" style="margin-bottom:12px;"><label>Email</label><input type="email" name="email" value="{{ envio_detalle.destinatario.email }}"/></div>
+            <div class="field" style="margin-bottom:12px;">
+              <label>Modalidad de entrega *</label>
+              <select name="modalidad" onchange="document.getElementById('dest-dir').style.display = this.value === 'domicilio' ? 'block' : 'none';">
+                <option value="sucursal" {% if envio_detalle.modalidad == 'sucursal' %}selected{% endif %}>Retiro en sucursal</option>
+                <option value="domicilio" {% if envio_detalle.modalidad == 'domicilio' %}selected{% endif %}>Entrega a domicilio</option>
+              </select>
+            </div>
+            <div class="field" id="dest-dir" style="margin-bottom:12px;{% if envio_detalle.modalidad != 'domicilio' %}display:none;{% endif %}"><label>Dirección de entrega *</label><input type="text" name="direccion" value="{{ envio_detalle.direccion_entrega }}" placeholder="Calle, número, ciudad"/></div>
+            <p style="font-size:.76rem;color:var(--gray);line-height:1.5;margin-bottom:12px;">Solo se puede modificar mientras el envío está pendiente o en tránsito. El nombre, teléfono y email se actualizan en la ficha del cliente. Queda registrado en Auditoría.</p>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </form>
+          {% endif %}
           <h3 style="font-size:1rem;font-weight:700;color:var(--blue-dark);margin:20px 0 12px;">Fechas</h3>
           <div style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;">
             <div><strong>Registro:</strong> {{ envio_detalle.fecha_registro|date:"d/m/Y H:i" }}</div>
@@ -1252,7 +1334,8 @@
   }
 
   function togglePeriodo(select) {
-    document.getElementById('periodo-field').style.display = select.value === 'mensual' ? 'block' : 'none';
+    document.getElementById('periodo-mensual').style.display = select.value === 'mensual' ? 'grid' : 'none';
+    document.getElementById('periodo-personalizado').style.display = select.value === 'personalizado' ? 'grid' : 'none';
   }
 
   {% if mostrar_reportes %}
@@ -1260,6 +1343,9 @@
   {% endif %}
   {% if mostrar_editar_vehiculo %}
   showPage('editar-vehiculo-{{ vehiculo_editar.id }}');
+  {% endif %}
+  {% if mostrar_editar_empleado %}
+  showPage('editar-empleado-{{ empleado_editar.id }}');
   {% endif %}
   {% if mostrar_detalle_envio %}
   showPage('detalle-envio-{{ envio_detalle.id }}');
