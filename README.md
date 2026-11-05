@@ -129,6 +129,11 @@ Si hace falta crear un administrador nuevo:
 python manage.py createsuperuser
 ```
 
+> Algunos datos de la demo dependen de la fecha (por ejemplo, los envíos de retiro en
+> sucursal tienen 20 días para ser retirados y después se devuelven solos). Si pasaron
+> varias semanas desde que se armó la base, ejecutar una vez, antes de abrir el
+> sistema: `python manage.py refrescar_demo`.
+
 > **Importante:** si probando el sistema se cambia algo (se despachan camiones, se
 > entregan envíos, etc.), esos cambios se guardan en `db.sqlite3`. Para volver a
 > los datos originales alcanza con descargar de nuevo ese archivo desde GitHub.
