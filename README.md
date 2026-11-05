@@ -113,11 +113,15 @@ La base de datos (`db.sqlite3`) viene con datos cargados para probar el sistema.
 | Usuario | Contraseña | Rol |
 |---|---|---|
 | `superadmin` | `123456` | Administrador |
-| `lautaromoreno` | `test12345` | Empleado |
-| `cliente_45435243541` | `test12345` | Cliente (Maria Agostina) |
+| `lautaromoreno` | `test12345` | Empleado (tiene un furgón asignado) |
+| `lucasbeltran` | `test12345` | Empleado **sin** vehículo (no puede salir a reparto) |
+| `valentinaherrera` | `Cliente2026` | Cliente |
+| `mariaagostina` | `test12345` | Cliente |
 
 El panel de Casa Central (simulación de Buenos Aires) se accede sin login en
-<http://127.0.0.1:8000/casacentral/>.
+<http://127.0.0.1:8000/casacentral/>. También se puede consultar el estado de un
+envío sin cuenta, con solo su código, en <http://127.0.0.1:8000/rastrear/>
+(por ejemplo `ENV-9C32B0`).
 
 Si hace falta crear un administrador nuevo:
 
@@ -125,7 +129,17 @@ Si hace falta crear un administrador nuevo:
 python manage.py createsuperuser
 ```
 
-## Notificaciones por email
+> **Importante:** si probando el sistema se cambia algo (se despachan camiones, se
+> entregan envíos, etc.), esos cambios se guardan en `db.sqlite3`. Para volver a
+> los datos originales alcanza con descargar de nuevo ese archivo desde GitHub.
+
+## Notificaciones
+
+Cada aviso que el sistema le manda al cliente (cambios de estado de sus envíos, pagos,
+reclamos, consultas y cancelaciones) queda guardado en la pestaña **Notificaciones**
+de su panel, con un contador de los que todavía no leyó. Además se manda por email:
+
+### Email
 
 Por defecto los correos **no se envían de verdad**: se imprimen en la terminal
 donde corre el servidor (backend de consola de Django). Alcanza para ver el
@@ -154,6 +168,15 @@ python manage.py runserver
 Las credenciales nunca se escriben en el código: si las variables no están
 definidas, el sistema vuelve solo al modo consola.
 
+## Seguimiento GPS en vivo (opcional)
+
+Cuando un empleado sale a reparto, su celular puede compartir la ubicación y el
+cliente ve el furgón en un mapa. Los navegadores solo permiten usar el GPS en
+conexiones seguras (HTTPS), por eso para probar esa parte desde un celular hay que
+exponer el servidor con un túnel como [ngrok](https://ngrok.com) (`ngrok http 8000`).
+No hace falta para revisar el resto del sistema: en la misma computadora, con
+`localhost`, el mapa también funciona.
+
 ## Tareas automáticas
 
 Detectar envíos demorados (más de 2 días sin cambiar de estado) y notificar a los
@@ -171,7 +194,7 @@ python manage.py detectar_demoras
 | `casacentral/` | Panel de Buenos Aires: alta de envíos, despacho de camiones, etiquetas QR |
 | `empleado/` | Panel de la sucursal: recepción, reparto, entregas e incidencias |
 | `administrador/` | Panel de gestión: empleados, vehículos, pagos, reportes, reclamos |
-| `cliente/` | Portal del cliente: seguimiento, pagos y reclamos |
+| `cliente/` | Portal del cliente: seguimiento, pagos, reclamos y notificaciones |
 | `config/` | Configuración de Django |
 
 El documento `Resumen_Mejoras_Santa_Marta.docx` detalla todas las mejoras

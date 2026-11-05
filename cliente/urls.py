@@ -5,6 +5,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard_view, name='cliente_dashboard'),
     path('reclamo/', views.generar_reclamo_view, name='cliente_reclamo'),
     path('consulta/', views.enviar_consulta_view, name='cliente_consulta'),
+    path('notificaciones/leidas/', views.marcar_notificaciones_leidas_view, name='cliente_notificaciones_leidas'),
     path('solicitar-cancelacion/', views.solicitar_cancelacion_view, name='cliente_solicitar_cancelacion'),
     path('pagar/', views.pagar_envio_view, name='cliente_pagar'),
     path('modificar-datos/', views.modificar_datos_view, name='cliente_modificar_datos'),

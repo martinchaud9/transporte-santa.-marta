@@ -476,3 +476,22 @@ class Vehiculo(models.Model):
 
     def __str__(self):
         return self.patente
+
+
+class Notificacion(models.Model):
+    """Aviso que el cliente ve en la pestaña Notificaciones de su panel. Se
+    genera junto con cada mail que le manda el sistema (cambios de estado de
+    sus envíos, pagos, reclamos, consultas y cancelaciones), así lo puede
+    volver a leer aunque el mail se pierda."""
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='notificaciones')
+    envio = models.ForeignKey(Envio, on_delete=models.SET_NULL, null=True, blank=True, related_name='notificaciones')
+    titulo = models.CharField(max_length=200)
+    mensaje = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
+    leida = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-fecha', '-id']
+
+    def __str__(self):
+        return f"{self.titulo} — {self.usuario.username}"

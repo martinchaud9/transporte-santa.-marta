@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from core.models import Envio, Reclamo, Pago, SolicitudCancelacion, Consulta
+from core.models import Envio, Reclamo, Pago, SolicitudCancelacion, Consulta, Notificacion
 from core.forms import ModificarDatosClienteForm
 from core.notificaciones import (
     notificar_recibo_pago, notificar_comprobante_recibido,
@@ -11,7 +11,7 @@ from core.notificaciones import (
 
 COMPROBANTE_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 
-TABS_VALIDAS = ('mis-envios', 'historial', 'reclamos', 'contacto', 'mis-datos')
+TABS_VALIDAS = ('mis-envios', 'historial', 'reclamos', 'notificaciones', 'contacto', 'mis-datos')
 
 
 def _volver_a(tab):
@@ -27,6 +27,8 @@ def _render_dashboard(request, **extra):
         'reclamos': Reclamo.objects.filter(cliente=request.user).select_related('envio').order_by('-fecha_creacion'),
         'consultas': Consulta.objects.filter(cliente=request.user).order_by('-fecha_creacion'),
         'motivos_consulta': Consulta.MOTIVO_CHOICES,
+        'notificaciones': Notificacion.objects.filter(usuario=request.user).select_related('envio')[:50],
+        'notificaciones_sin_leer': Notificacion.objects.filter(usuario=request.user, leida=False).count(),
         'tab_inicial': tab if tab in TABS_VALIDAS else '',
     }
     contexto.update(extra)
@@ -160,6 +162,20 @@ def generar_reclamo_view(request):
             messages.error(request, 'Seleccioná un envío válido para generar el reclamo.')
             return _render_dashboard(request, mostrar_reclamos=True)
 
+        if tipo not in dict(Reclamo.TIPO_CHOICES):
+            messages.error(request, 'Elegí un tipo de problema válido para el reclamo.')
+            return _render_dashboard(request, mostrar_reclamos=True)
+
+        # Un paquete no puede estar dañado para el cliente si todavía no lo
+        # recibió: el reclamo por daño se habilita recién con el envío entregado.
+        if tipo == 'danado' and envio.estado != 'entregado':
+            messages.error(
+                request,
+                f'No podés reportar {envio.codigo} como dañado porque todavía no fue entregado '
+                f'(estado actual: {envio.get_estado_display()}). Cuando lo recibas, podrás reclamar por daños.'
+            )
+            return _render_dashboard(request, mostrar_reclamos=True)
+
         reclamo = Reclamo.objects.create(
             envio=envio,
             cliente=request.user,
@@ -169,6 +185,15 @@ def generar_reclamo_view(request):
         messages.success(request, f'✓ Tu reclamo N° {reclamo.id} fue registrado. Podés seguir su estado acá abajo, en “Mis reclamos”.')
         return _volver_a('reclamos')
     return redirect('cliente_dashboard')
+
+
+@login_required
+def marcar_notificaciones_leidas_view(request):
+    if request.user.rol != 'cliente':
+        return redirect('inicio')
+    if request.method == 'POST':
+        Notificacion.objects.filter(usuario=request.user, leida=False).update(leida=True)
+    return _volver_a('notificaciones')
 
 
 @login_required

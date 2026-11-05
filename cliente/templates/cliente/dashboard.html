@@ -54,6 +54,12 @@
     .tab-btn:hover { color: var(--blue); }
     .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
     .tab-btn svg { width: 16px; height: 16px; }
+    .tab-contador { background: #dc2626; color: white; border-radius: 999px; font-size: .7rem; font-weight: 700; padding: 1px 7px; line-height: 1.4; }
+    .envio-card.notif { display: block; border-left: 4px solid var(--gray-light); }
+    .envio-card.notif.sin-leer { border-left-color: var(--blue); background: #f5f9ff; }
+    .notif-titulo { font-weight: 700; color: var(--blue-dark); font-size: .95rem; }
+    .notif-fecha { font-size: .75rem; color: var(--gray); white-space: nowrap; }
+    .notif-texto { font-size: .85rem; line-height: 1.6; margin-top: 6px; color: var(--text, #1f2937); }
 
     /* CONTENT */
     .content { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
@@ -174,6 +180,10 @@
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>
     Reclamos
   </button>
+  <button class="tab-btn" data-tab="notificaciones" onclick="showTab('notificaciones')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+    Notificaciones{% if notificaciones_sin_leer %} <span class="tab-contador">{{ notificaciones_sin_leer }}</span>{% endif %}
+  </button>
   <button class="tab-btn" data-tab="contacto" onclick="showTab('contacto')">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
     Contacto
@@ -267,7 +277,7 @@
             <button class="btn btn-outline" style="font-size:.75rem;padding:5px 10px;" onclick="abrirCancelacion('{{ envio.id }}', '{{ envio.codigo }}')">Solicitar cancelación</button>
             {% endif %}
           {% endif %}
-          <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}')">Generar reclamo</button>
+          <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}', '{{ envio.estado }}')">Generar reclamo</button>
         </div>
       </div>
       {% endif %}
@@ -294,6 +304,9 @@
       </div>
       <div class="envio-actions">
         <span class="badge badge-{{ envio.estado }}">{{ envio.get_estado_display }}</span>
+        {% if envio.estado == 'entregado' %}
+        <button class="btn btn-danger" style="font-size:.75rem;padding:5px 10px;" onclick="abrirReclamo('{{ envio.id }}', '{{ envio.codigo }}', '{{ envio.estado }}')">Reportar un problema</button>
+        {% endif %}
       </div>
     </div>
     {% empty %}
@@ -315,7 +328,7 @@
           <select name="envio_id" required>
             <option value="">Seleccionar envío...</option>
             {% for envio in envios %}
-            <option value="{{ envio.id }}">{{ envio.codigo }} — {{ envio.get_estado_display }}</option>
+            <option value="{{ envio.id }}" data-estado="{{ envio.estado }}">{{ envio.codigo }} — {{ envio.get_estado_display }}</option>
             {% endfor %}
           </select>
         </div>
@@ -327,6 +340,7 @@
             <option value="demora">Demora en la entrega</option>
             <option value="otro">Otro</option>
           </select>
+          <div id="aviso-danado" style="display:none;font-size:.78rem;color:#b45309;margin-top:6px;">Un daño solo se puede reportar cuando el envío ya fue entregado.</div>
         </div>
         <div class="field">
           <label>Descripción *</label>
@@ -361,6 +375,32 @@
     </div>
     {% empty %}
     <div class="empty-state"><p>No generaste ningún reclamo.</p></div>
+    {% endfor %}
+  </div>
+
+  <!-- NOTIFICACIONES -->
+  <div id="tab-notificaciones" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="section-title" style="margin-bottom:0;">Notificaciones</div>
+      {% if notificaciones_sin_leer %}
+      <form method="POST" action="{% url 'cliente_notificaciones_leidas' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline" style="font-size:.8rem;padding:6px 12px;">Marcar todas como leídas ({{ notificaciones_sin_leer }})</button>
+      </form>
+      {% endif %}
+    </div>
+    <p style="font-size:.82rem;color:var(--gray);margin:6px 0 18px;">Acá quedan guardados los avisos que también te mandamos por mail: cambios de estado de tus envíos, pagos, reclamos, consultas y cancelaciones.</p>
+    {% for n in notificaciones %}
+    <div class="envio-card notif {% if not n.leida %}sin-leer{% endif %}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div class="notif-titulo">{% if not n.leida %}<span style="color:var(--blue);">●</span> {% endif %}{{ n.titulo }}</div>
+        <div class="notif-fecha">{{ n.fecha|date:"d/m/Y H:i" }}</div>
+      </div>
+      <div class="notif-texto">{{ n.mensaje|linebreaksbr }}</div>
+      {% if n.envio %}<div class="envio-detail" style="margin-top:8px;"><strong>Envío:</strong> {{ n.envio.codigo }}</div>{% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state"><p>Todavía no tenés notificaciones.</p></div>
     {% endfor %}
   </div>
 
@@ -455,13 +495,14 @@
       </div>
       <div class="field">
         <label>Tipo de problema *</label>
-        <select name="tipo">
-          <option value="danado">Paquete dañado</option>
+        <select name="tipo" id="modal-tipo">
+          <option value="danado" id="modal-opcion-danado">Paquete dañado</option>
           <option value="perdida">Pérdida del paquete</option>
           <option value="demora">Demora en la entrega</option>
           <option value="otro">Otro</option>
         </select>
       </div>
+      <div id="modal-aviso-danado" style="display:none;font-size:.78rem;color:#b45309;margin:-6px 0 12px;">Un daño solo se puede reportar cuando el envío ya fue entregado: por ahora no está disponible para este envío.</div>
       <div class="field">
         <label>Descripción *</label>
         <textarea name="descripcion" placeholder="Describí el problema..."></textarea>
@@ -602,12 +643,31 @@
     if (boton) boton.classList.add('active');
   }
 
-  function abrirReclamo(id, codigo) {
+  function abrirReclamo(id, codigo, estado) {
     document.getElementById('modal-envio-id').value = id;
     document.getElementById('modal-envio-codigo').textContent = codigo;
+    // Un daño solo se reclama con el envío ya entregado.
+    const sinEntregar = estado !== 'entregado';
+    const opcion = document.getElementById('modal-opcion-danado');
+    opcion.disabled = sinEntregar;
+    document.getElementById('modal-aviso-danado').style.display = sinEntregar ? 'block' : 'none';
+    const tipo = document.getElementById('modal-tipo');
+    if (sinEntregar && tipo.value === 'danado') tipo.value = 'perdida';
     const modal = document.getElementById('modal-reclamo');
     modal.style.display = 'flex';
   }
+
+  // Formulario de la pestaña Reclamos: "Paquete dañado" se habilita solo si el envío elegido ya fue entregado.
+  function ajustarTipoReclamo() {
+    const envioSel = document.querySelector('#tab-reclamos select[name="envio_id"]');
+    const tipoSel = document.querySelector('#tab-reclamos select[name="tipo"]');
+    const opcionEnvio = envioSel.options[envioSel.selectedIndex];
+    const sinEntregar = !!opcionEnvio && opcionEnvio.value !== '' && opcionEnvio.dataset.estado !== 'entregado';
+    tipoSel.querySelector('option[value="danado"]').disabled = sinEntregar;
+    document.getElementById('aviso-danado').style.display = sinEntregar ? 'block' : 'none';
+    if (sinEntregar && tipoSel.value === 'danado') tipoSel.value = 'perdida';
+  }
+  document.querySelector('#tab-reclamos select[name="envio_id"]').addEventListener('change', ajustarTipoReclamo);
 
   function cerrarModal() {
     document.getElementById('modal-reclamo').style.display = 'none';

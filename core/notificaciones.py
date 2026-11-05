@@ -2,9 +2,16 @@ from django.conf import settings
 from django.core.mail import send_mail as _send_mail
 
 
-def enviar(asunto, cuerpo, destinatario):
-    """Envía un correo sin interrumpir la operación si falla, pero dejando
-    el error visible en la terminal del servidor para poder diagnosticarlo."""
+def enviar(asunto, cuerpo, usuario, envio=None):
+    """Avisa al usuario: deja el aviso guardado en su panel (pestaña
+    Notificaciones) y además le manda el mismo texto por mail. El mail no
+    interrumpe la operación si falla, pero deja el error visible en la
+    terminal del servidor para poder diagnosticarlo."""
+    from core.models import Notificacion
+    if usuario.rol == 'cliente':
+        Notificacion.objects.create(usuario=usuario, envio=envio, titulo=asunto, mensaje=cuerpo)
+
+    destinatario = usuario.email
     if not destinatario:
         print(f'[email] NO ENVIADO ("{asunto}"): el destinatario no tiene email cargado.')
         return
@@ -53,7 +60,7 @@ def notificar_cambio_estado(envio):
             f' Podés pasar a retirarlo con tu DNI dentro de los próximos {envio.UMBRAL_RETENCION_DIAS} días; '
             'pasado ese plazo se devuelve a Buenos Aires.'
         )
-    enviar(asunto, cuerpo, envio.destinatario.email)
+    enviar(asunto, cuerpo, envio.destinatario, envio)
 
 
 def notificar_recibo_pago(pago):
@@ -73,7 +80,7 @@ def notificar_recibo_pago(pago):
         lineas.append('  Estado: Pagado en su totalidad')
     lineas.append('')
     lineas.append('¡Gracias por elegir Santa Marta!')
-    enviar(f'Recibo de pago — {envio.codigo}', '\n'.join(lineas), envio.destinatario.email)
+    enviar(f'Recibo de pago — {envio.codigo}', '\n'.join(lineas), envio.destinatario, envio)
 
 
 def notificar_comprobante_recibido(pago):
@@ -85,7 +92,7 @@ def notificar_comprobante_recibido(pago):
             'Un administrador va a verificar que la transferencia haya llegado a la cuenta de Santa Marta. '
             'Te vamos a avisar por este mismo medio cuando quede confirmado.'
         ),
-        envio.destinatario.email,
+        envio.destinatario, envio,
     )
 
 
@@ -104,7 +111,7 @@ def notificar_intento_fallido(envio):
             f'Visitamos tu domicilio para entregar el paquete {envio.codigo} pero no había nadie. '
             'En los próximos días lo visitaremos de nuevo.'
         )
-    enviar(asunto, cuerpo, envio.destinatario.email)
+    enviar(asunto, cuerpo, envio.destinatario, envio)
 
 
 def notificar_reclamo_actualizado(reclamo):
@@ -115,7 +122,7 @@ def notificar_reclamo_actualizado(reclamo):
     ]
     if reclamo.respuesta:
         lineas += ['', 'Respuesta de la sucursal:', reclamo.respuesta]
-    enviar(f'Actualización de tu reclamo N° {reclamo.id}', '\n'.join(lineas), reclamo.cliente.email)
+    enviar(f'Actualización de tu reclamo N° {reclamo.id}', '\n'.join(lineas), reclamo.cliente, reclamo.envio)
 
 
 def notificar_solicitud_cancelacion_recibida(solicitud):
@@ -126,7 +133,7 @@ def notificar_solicitud_cancelacion_recibida(solicitud):
             f'Recibimos tu solicitud de cancelación N° {solicitud.id} para el envío {envio.codigo}.\n\n'
             'Un administrador lo va a revisar y te vamos a avisar por este mismo medio cuando quede resuelto.'
         ),
-        envio.destinatario.email,
+        envio.destinatario, envio,
     )
 
 
@@ -134,7 +141,7 @@ def notificar_demora(envio):
     enviar(
         'Tu envío está demorado',
         f'Tu paquete {envio.codigo} lleva más de {envio.UMBRAL_DEMORA_DIAS} días sin actualizar su estado. Estamos revisando la demora.',
-        envio.destinatario.email,
+        envio.destinatario, envio,
     )
 
 
@@ -148,7 +155,7 @@ def notificar_pago_rechazado(pago):
             f'El envío sigue con el pago pendiente. Podés volver a pagarlo desde “Mis envíos”, '
             'subiendo un comprobante correcto o abonando con tarjeta.'
         ),
-        envio.destinatario.email,
+        envio.destinatario, envio,
     )
 
 
@@ -162,7 +169,7 @@ def notificar_consulta_respondida(consulta):
         'Nuestra respuesta:',
         consulta.respuesta,
     ]
-    enviar(f'Respuesta a tu consulta N° {consulta.id}', '\n'.join(lineas), consulta.cliente.email)
+    enviar(f'Respuesta a tu consulta N° {consulta.id}', '\n'.join(lineas), consulta.cliente)
 
 
 def notificar_solicitud_cancelacion_rechazada(solicitud):
@@ -171,4 +178,4 @@ def notificar_solicitud_cancelacion_rechazada(solicitud):
     if solicitud.respuesta_admin:
         lineas += ['', 'Motivo:', solicitud.respuesta_admin]
     lineas += ['', 'El envío sigue su curso normal. Si lo necesitás, podés volver a pedir la cancelación mientras siga pendiente.']
-    enviar(f'No se pudo cancelar tu envío {envio.codigo}', '\n'.join(lineas), envio.destinatario.email)
+    enviar(f'No se pudo cancelar tu envío {envio.codigo}', '\n'.join(lineas), envio.destinatario, envio)
